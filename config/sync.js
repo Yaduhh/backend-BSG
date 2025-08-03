@@ -1,0 +1,50 @@
+const { sequelize } = require('./database');
+const User = require('../models/User');
+const PicMenu = require('../models/PicMenu');
+const { updateRoles } = require('../scripts/updateRoles');
+const { createChatTables } = require('../scripts/createChatTables');
+
+const syncDatabase = async () => {
+  try {
+    console.log('🔄 Syncing database...');
+    
+    // Sync semua model - tanpa alter untuk menghindari error "too many keys"
+    await sequelize.sync({ force: false, alter: false });
+    
+    console.log('✅ Database synced successfully!');
+    
+    // Create chat tables manually
+    await createChatTables();
+    
+    // Cek apakah ada user admin default
+    const adminUser = await User.findOne({
+      where: {
+        username: 'admin',
+        status_deleted: false
+      }
+    });
+    
+    if (!adminUser) {
+      // Buat user admin default
+      await User.create({
+        nama: 'Administrator',
+        username: 'admin',
+        email: 'admin@bosgilgroup.com',
+        password: 'admin123',
+        role: 'admin',
+        status: 'active'
+      });
+      
+      console.log('👤 Default admin user created');
+    }
+    
+    // Update role lama ke role baru
+    await updateRoles();
+    
+  } catch (error) {
+    console.error('❌ Error syncing database:', error);
+    throw error;
+  }
+};
+
+module.exports = { syncDatabase }; 

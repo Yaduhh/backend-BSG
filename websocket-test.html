@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected { background-color: #d4edda; color: #155724; }
+        .disconnected { background-color: #f8d7da; color: #721c24; }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket Test</h1>
+        
+        <div id="status" class="status disconnected">
+            ❌ Disconnected
+        </div>
+        
+        <div class="form-group">
+            <label for="userId">User ID:</label>
+            <input type="text" id="userId" value="user123" placeholder="Enter user ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="roomName">Room Name:</label>
+            <input type="text" id="roomName" value="test-room" placeholder="Enter room name">
+        </div>
+        
+        <div class="form-group">
+            <label for="message">Message:</label>
+            <input type="text" id="message" value="Hello WebSocket!" placeholder="Enter message">
+        </div>
+        
+        <div>
+            <button onclick="connect()">🔌 Connect</button>
+            <button onclick="disconnect()">❌ Disconnect</button>
+            <button onclick="login()">👤 Login</button>
+            <button onclick="joinRoom()">🚪 Join Room</button>
+            <button onclick="leaveRoom()">🚪 Leave Room</button>
+            <button onclick="sendNotification()">📢 Send Notification</button>
+            <button onclick="broadcastNotification()">📢 Broadcast</button>
+            <button onclick="sendChatMessage()">💬 Send Chat</button>
+            <button onclick="clearLog()">🗑️ Clear Log</button>
+        </div>
+        
+        <h3>📋 Event Log:</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let socket;
+        let isConnected = false;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            isConnected = connected;
+            
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.innerHTML = '✅ Connected to WebSocket server';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.innerHTML = '❌ Disconnected';
+            }
+        }
+
+        function connect() {
+            if (socket) {
+                socket.disconnect();
+            }
+
+            socket = io('http://localhost:3000');
+
+            socket.on('connect', () => {
+                log('🔌 Connected to WebSocket server');
+                log(`Socket ID: ${socket.id}`);
+                updateStatus(true);
+            });
+
+            socket.on('disconnect', () => {
+                log('❌ Disconnected from WebSocket server');
+                updateStatus(false);
+            });
+
+            socket.on('welcome', (data) => {
+                log(`👋 Welcome: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('new_notification', (data) => {
+                log(`📢 Notification: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('new_message', (data) => {
+                log(`💬 Message: ${JSON.stringify(data)}`);
+            });
+
+            socket.on('error', (error) => {
+                log(`❌ Error: ${error}`);
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                log('🔌 Manually disconnected');
+            }
+        }
+
+        function login() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            socket.emit('user_login', userId);
+            log(`👤 Login as user: ${userId}`);
+        }
+
+        function joinRoom() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const roomName = document.getElementById('roomName').value;
+            socket.emit('join_room', roomName);
+            log(`🚪 Joined room: ${roomName}`);
+        }
+
+        function leaveRoom() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const roomName = document.getElementById('roomName').value;
+            socket.emit('leave_room', roomName);
+            log(`🚪 Left room: ${roomName}`);
+        }
+
+        function sendNotification() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            const message = document.getElementById('message').value;
+            
+            socket.emit('send_notification', {
+                userId: userId,
+                title: 'Test Notification',
+                message: message,
+                type: 'info'
+            });
+            log(`📢 Sent notification to user ${userId}: ${message}`);
+        }
+
+        function broadcastNotification() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const message = document.getElementById('message').value;
+            
+            socket.emit('broadcast_notification', {
+                title: 'Broadcast Test',
+                message: message,
+                type: 'success'
+            });
+            log(`📢 Broadcast notification: ${message}`);
+        }
+
+        function sendChatMessage() {
+            if (!socket || !isConnected) {
+                log('❌ Not connected to server');
+                return;
+            }
+
+            const userId = document.getElementById('userId').value;
+            const message = document.getElementById('message').value;
+            
+            socket.emit('chat_message', {
+                sender: userId,
+                message: message,
+                room: 'general'
+            });
+            log(`💬 Sent chat message as ${userId}: ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Auto connect when page loads
+        window.onload = function() {
+            connect();
+        };
+    </script>
+</body>
+</html> 

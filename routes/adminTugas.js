@@ -221,7 +221,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const adminId = req.user.id;
-    const { status, rating, catatan } = req.body;
+    const { status, rating, catatan, lampiran, completed_at } = req.body;
 
     // Validasi status yang diizinkan
     const validStatuses = ['belum', 'proses', 'revisi', 'selesai'];
@@ -262,13 +262,59 @@ router.put('/:id', async (req, res) => {
     if (status) updateData.status = status;
     if (rating !== undefined) updateData.rating = rating;
     if (catatan !== undefined) updateData.catatan = catatan ? catatan.trim() : null;
+    
+    // Handle lampiran
+    if (lampiran !== undefined) {
+      if (Array.isArray(lampiran) && lampiran.length > 0) {
+        updateData.lampiran = JSON.stringify(lampiran);
+      } else {
+        updateData.lampiran = null;
+      }
+    }
+    
+    // Handle completed_at
+    if (completed_at) updateData.completed_at = new Date(completed_at);
 
     await task.update(updateData);
+
+    // Fetch updated task with user data and parse JSON fields
+    const updatedTask = await DaftarTugas.findByPk(task.id, {
+      include: [
+        {
+          model: User,
+          as: 'pemberiTugas',
+          attributes: ['id', 'nama', 'email']
+        },
+        {
+          model: User,
+          as: 'penerimaTugas',
+          attributes: ['id', 'nama', 'email']
+        }
+      ]
+    });
+
+    const taskDataResponse = updatedTask.toJSON();
+    
+    // Parse JSON fields
+    if (taskDataResponse.pihak_terkait) {
+      try {
+        taskDataResponse.pihak_terkait = JSON.parse(taskDataResponse.pihak_terkait);
+      } catch (e) {
+        taskDataResponse.pihak_terkait = [];
+      }
+    }
+    if (taskDataResponse.lampiran) {
+      try {
+        taskDataResponse.lampiran = JSON.parse(taskDataResponse.lampiran);
+      } catch (e) {
+        taskDataResponse.lampiran = [];
+      }
+    }
 
     res.json({
       success: true,
       message: 'Tugas berhasil diperbarui',
-      data: task
+      data: taskDataResponse
     });
   } catch (error) {
     console.error('Error updating admin task:', error);

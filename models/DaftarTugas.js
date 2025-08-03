@@ -71,6 +71,11 @@ const DaftarTugas = sequelize.define('DaftarTugas', {
     type: DataTypes.TEXT,
     allowNull: true,
     comment: 'Catatan tambahan untuk tugas'
+  },
+  completed_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Waktu tugas selesai'
   }
 }, {
   tableName: 'daftar_tugas',

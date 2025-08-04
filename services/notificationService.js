@@ -117,6 +117,130 @@ const sendChatNotification = async (senderId, receiverId, message, senderName, w
   }
 };
 
+// Send task notification
+const sendTaskNotification = async (taskData, pemberiTugas, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const taskDescription = taskData.keterangan_tugas;
+    const priority = taskData.skala_prioritas;
+    const targetDate = new Date(taskData.target_selesai);
+    
+    // Format priority text
+    const priorityText = {
+      'mendesak': 'Mendesak',
+      'penting': 'Penting', 
+      'berproses': 'Berproses'
+    }[priority] || 'Berproses';
+    
+    // Format target date
+    const formattedDate = targetDate.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+
+    // Notification for penerima tugas (assigned person)
+    if (taskData.penerima_tugas) {
+      const penerimaUser = await User.findByPk(taskData.penerima_tugas);
+      if (penerimaUser) {
+        const title = `📋 Tugas Baru: ${taskTitle}`;
+        const body = `Anda ditugaskan oleh ${pemberiTugas.nama}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+        const data = {
+          type: 'task_assigned',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          priority: priority,
+          target_date: targetDate.toISOString(),
+          pemberi_tugas_id: pemberiTugas.id,
+          pemberi_tugas_name: pemberiTugas.nama
+        };
+
+        // Send push notification
+        await sendNotificationToUser(taskData.penerima_tugas, title, body, data);
+
+        // Send WebSocket notification if user is online
+        if (wsService) {
+          try {
+            const notificationData = {
+              type: 'task_assigned',
+              task_id: taskData.id,
+              task_title: taskTitle,
+              priority: priority,
+              target_date: targetDate.toISOString(),
+              pemberi_tugas_id: pemberiTugas.id,
+              pemberi_tugas_name: pemberiTugas.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(taskData.penerima_tugas, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for penerima tugas:', wsError);
+          }
+        }
+      }
+    }
+
+    // Notification for pihak terkait (related parties)
+    if (taskData.pihak_terkait && Array.isArray(taskData.pihak_terkait)) {
+      for (const userId of taskData.pihak_terkait) {
+        // Skip if this user is the same as penerima tugas
+        if (userId === taskData.penerima_tugas) continue;
+        
+        const relatedUser = await User.findByPk(userId);
+        if (relatedUser) {
+          const title = `👥 Tugas Terkait: ${taskTitle}`;
+          const body = `Anda terkait dengan tugas dari ${pemberiTugas.nama}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+          const data = {
+            type: 'task_related',
+            task_id: taskData.id,
+            task_title: taskTitle,
+            priority: priority,
+            target_date: targetDate.toISOString(),
+            pemberi_tugas_id: pemberiTugas.id,
+            pemberi_tugas_name: pemberiTugas.nama
+          };
+
+          // Send push notification
+          await sendNotificationToUser(userId, title, body, data);
+
+          // Send WebSocket notification if user is online
+          if (wsService) {
+            try {
+              const notificationData = {
+                type: 'task_related',
+                task_id: taskData.id,
+                task_title: taskTitle,
+                priority: priority,
+                target_date: targetDate.toISOString(),
+                pemberi_tugas_id: pemberiTugas.id,
+                pemberi_tugas_name: pemberiTugas.nama,
+                title: title,
+                body: body,
+                timestamp: new Date()
+              };
+              
+              wsService.sendNotificationToUser(userId, notificationData);
+            } catch (wsError) {
+              console.error('WebSocket notification error for pihak terkait:', wsError);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`✅ Task notifications sent successfully for task: ${taskTitle}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task notification:', error);
+    return false;
+  }
+};
+
 // Check notification receipts
 const checkNotificationReceipts = async (tickets) => {
   try {
@@ -158,5 +282,6 @@ module.exports = {
   sendNotificationToDevice,
   sendNotificationToUser,
   sendChatNotification,
+  sendTaskNotification,
   checkNotificationReceipts
 }; 

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { DaftarTugas, User } = require('../models');
 const { Op } = require('sequelize');
+const { sendTaskNotification } = require('../services/notificationService');
 
 // Get all tasks with pagination and filters
 router.get('/', async (req, res) => {
@@ -268,6 +269,27 @@ router.post('/', async (req, res) => {
       } catch (e) {
         taskDataResponse.lampiran = [];
       }
+    }
+
+    // Send notifications asynchronously (don't wait for it)
+    try {
+      // Get wsService instance from app
+      const wsService = req.app.get('wsService');
+      
+      // Send notifications to penerima tugas and pihak terkait
+      sendTaskNotification(taskDataResponse, pemberiUser, wsService)
+        .then(success => {
+          if (success) {
+            console.log(`✅ Task notifications sent successfully for task: ${judul_tugas}`);
+          } else {
+            console.log(`❌ Failed to send task notifications for task: ${judul_tugas}`);
+          }
+        })
+        .catch(error => {
+          console.error('Error sending task notifications:', error);
+        });
+    } catch (notificationError) {
+      console.error('Error setting up task notifications:', notificationError);
     }
 
     res.status(201).json({

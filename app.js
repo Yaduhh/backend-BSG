@@ -20,6 +20,7 @@ const adminTugasRoutes = require('./routes/adminTugas');
 const uploadRoutes = require('./routes/upload');
 const keuanganPoskasRoutes = require('./routes/keuanganPoskas');
 const adminProfileRoutes = require('./routes/adminProfile');
+const daftarKomplainRoutes = require('./routes/daftarKomplain');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -45,10 +46,12 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/admin-chat', adminChatRoutes);
 app.use('/api/devices', deviceRoutes);
 app.use('/api/daftar-tugas', daftarTugasRoutes);
+app.use('/api/daftar-komplain', daftarKomplainRoutes);
 app.use('/api/admin-tugas', adminTugasRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/keuangan-poskas', keuanganPoskasRoutes);
 app.use('/api/admin', adminProfileRoutes);
+app.use('/api/health', require('./routes/health'));
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -241,6 +241,143 @@ const sendTaskNotification = async (taskData, pemberiTugas, wsService = null) =>
   }
 };
 
+// Send komplain notification
+const sendKomplainNotification = async (komplainData, pelapor, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get komplain details
+    const komplainTitle = komplainData.judul_komplain;
+    const komplainDescription = komplainData.deskripsi_komplain;
+    const priority = komplainData.prioritas;
+    const category = komplainData.kategori;
+    const targetDate = komplainData.target_selesai ? new Date(komplainData.target_selesai) : null;
+    
+    // Format priority text
+    const priorityText = {
+      'mendesak': 'Mendesak',
+      'penting': 'Penting', 
+      'berproses': 'Berproses'
+    }[priority] || 'Berproses';
+    
+    // Format category text
+    const categoryText = {
+      'sistem': 'Sistem',
+      'layanan': 'Layanan',
+      'produk': 'Produk',
+      'lainnya': 'Lainnya'
+    }[category] || 'Lainnya';
+    
+    // Format target date
+    const formattedDate = targetDate ? targetDate.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }) : 'Tidak ditentukan';
+
+    // Notification for penerima komplain (responsible person)
+    if (komplainData.penerima_komplain_id) {
+      const penerimaKomplainUser = await User.findByPk(komplainData.penerima_komplain_id);
+      if (penerimaKomplainUser) {
+        const title = `🚨 Komplain Baru: ${komplainTitle}`;
+        const body = `Anda ditugaskan untuk menangani komplain dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+        const data = {
+          type: 'komplain_assigned',
+          komplain_id: komplainData.id,
+          komplain_title: komplainTitle,
+          priority: priority,
+          category: category,
+          target_date: targetDate ? targetDate.toISOString() : null,
+          pelapor_id: pelapor.id,
+          pelapor_name: pelapor.nama
+        };
+
+        // Send push notification
+        await sendNotificationToUser(komplainData.penerima_komplain_id, title, body, data);
+
+        // Send WebSocket notification if user is online
+        if (wsService) {
+          try {
+            const notificationData = {
+              type: 'komplain_assigned',
+              komplain_id: komplainData.id,
+              komplain_title: komplainTitle,
+              priority: priority,
+              category: category,
+              target_date: targetDate ? targetDate.toISOString() : null,
+              pelapor_id: pelapor.id,
+              pelapor_name: pelapor.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(komplainData.penerima_komplain_id, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for penerima komplain:', wsError);
+          }
+        }
+      }
+    }
+
+    // Notification for pihak terkait (related parties)
+    if (komplainData.pihak_terkait && Array.isArray(komplainData.pihak_terkait)) {
+      for (const userId of komplainData.pihak_terkait) {
+        // Skip if this user is the same as penerima komplain
+        if (userId === komplainData.penerima_komplain_id) continue;
+        
+        const relatedUser = await User.findByPk(userId);
+        if (relatedUser) {
+          const title = `👥 Komplain Terkait: ${komplainTitle}`;
+          const body = `Anda terkait dengan komplain dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+          const data = {
+            type: 'komplain_related',
+            komplain_id: komplainData.id,
+            komplain_title: komplainTitle,
+            priority: priority,
+            category: category,
+            target_date: targetDate ? targetDate.toISOString() : null,
+            pelapor_id: pelapor.id,
+            pelapor_name: pelapor.nama
+          };
+
+          // Send push notification
+          await sendNotificationToUser(userId, title, body, data);
+
+          // Send WebSocket notification if user is online
+          if (wsService) {
+            try {
+              const notificationData = {
+                type: 'komplain_related',
+                komplain_id: komplainData.id,
+                komplain_title: komplainTitle,
+                priority: priority,
+                category: category,
+                target_date: targetDate ? targetDate.toISOString() : null,
+                pelapor_id: pelapor.id,
+                pelapor_name: pelapor.nama,
+                title: title,
+                body: body,
+                timestamp: new Date()
+              };
+              
+              wsService.sendNotificationToUser(userId, notificationData);
+            } catch (wsError) {
+              console.error('WebSocket notification error for pihak terkait:', wsError);
+            }
+          }
+        }
+      }
+    }
+
+    console.log(`✅ Komplain notifications sent successfully for complaint: ${komplainTitle}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending komplain notification:', error);
+    return false;
+  }
+};
+
 // Check notification receipts
 const checkNotificationReceipts = async (tickets) => {
   try {
@@ -283,5 +420,6 @@ module.exports = {
   sendNotificationToUser,
   sendChatNotification,
   sendTaskNotification,
+  sendKomplainNotification,
   checkNotificationReceipts
 }; 

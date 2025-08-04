@@ -124,13 +124,6 @@ User.associate = (models) => {
     foreignKey: 'sender_id',
     as: 'messages'
   });
-  
-  User.belongsToMany(models.User, {
-    through: models.ChatRoom,
-    foreignKey: 'user1_id',
-    otherKey: 'user2_id',
-    as: 'chatPartners'
-  });
 };
 
 module.exports = User; 

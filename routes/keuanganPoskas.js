@@ -204,7 +204,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new keuangan poskas
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const { tanggal_poskas, isi_poskas } = req.body;
+    const { tanggal_poskas, isi_poskas, images } = req.body;
     
     // Validate required fields
     if (!tanggal_poskas || !isi_poskas) {
@@ -217,7 +217,8 @@ router.post('/', authenticateToken, async (req, res) => {
     const data = {
       id_user: req.user.id,
       tanggal_poskas,
-      isi_poskas
+      isi_poskas,
+      images: images || null
     };
 
     const newKeuanganPoskas = await KeuanganPoskas.create(data);
@@ -240,7 +241,7 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { tanggal_poskas, isi_poskas } = req.body;
+    const { tanggal_poskas, isi_poskas, images } = req.body;
     
     // Validate required fields
     if (!tanggal_poskas || !isi_poskas) {
@@ -269,7 +270,8 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const updatedData = {
       tanggal_poskas,
-      isi_poskas
+      isi_poskas,
+      images: images || null
     };
 
     const updatedKeuanganPoskas = await KeuanganPoskas.update(id, updatedData);

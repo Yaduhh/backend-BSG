@@ -1,8 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { DaftarKomplain, User } = require('../models');
-const { Op } = require('sequelize');
-const { sendKomplainNotification } = require('../services/notificationService');
+const { Op, Sequelize } = require('sequelize');
+const { 
+  sendKomplainNotification, 
+  sendKomplainNewNotification, 
+  sendKomplainOwnerToAdminNotification,
+  sendKomplainRevisionNotification,
+  sendKomplainRatingNotification
+} = require('../services/notificationService');
 const { authenticateToken } = require('../middleware/auth');
 
 // Get all complaints with pagination and filters
@@ -275,6 +281,34 @@ router.post('/', authenticateToken, async (req, res) => {
         .catch(error => {
           console.error('Error sending komplain notifications:', error);
         });
+
+      // Send new komplain notification to admin and related parties
+      sendKomplainNewNotification(complaintResponse, complaintResponse.Pelapor, wsService)
+        .then(success => {
+          if (success) {
+            console.log(`✅ New komplain notifications sent successfully for complaint: ${judul_komplain}`);
+          } else {
+            console.log(`❌ Failed to send new komplain notifications for complaint: ${judul_komplain}`);
+          }
+        })
+        .catch(error => {
+          console.error('Error sending new komplain notifications:', error);
+        });
+
+      // Send special notification from owner to admin if pelapor is owner
+      if (complaintResponse.Pelapor && complaintResponse.Pelapor.role === 'owner') {
+        sendKomplainOwnerToAdminNotification(complaintResponse, complaintResponse.Pelapor, wsService)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Owner to admin komplain notification sent successfully for complaint: ${judul_komplain}`);
+            } else {
+              console.log(`❌ Failed to send owner to admin komplain notification for complaint: ${judul_komplain}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error sending owner to admin komplain notification:', error);
+          });
+      }
     } catch (notificationError) {
       console.error('Error setting up komplain notifications:', notificationError);
     }
@@ -360,13 +394,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
     const complaintResponse = updatedComplaint.toJSON();
     
-    // Parse JSON fields
+    // Pastikan lampiran selalu array, bahkan jika null/undefined
     if (complaintResponse.lampiran) {
       try {
         complaintResponse.lampiran = JSON.parse(complaintResponse.lampiran);
       } catch (e) {
+        console.error('Error parsing lampiran in update response:', e);
         complaintResponse.lampiran = [];
       }
+    } else {
+      complaintResponse.lampiran = []; // Inisialisasi sebagai array kosong jika null/undefined
     }
     
     if (complaintResponse.pihak_terkait) {
@@ -375,6 +412,45 @@ router.put('/:id', authenticateToken, async (req, res) => {
       } catch (e) {
         complaintResponse.pihak_terkait = [];
       }
+    } else {
+      complaintResponse.pihak_terkait = []; // Inisialisasi sebagai array kosong jika null/undefined
+    }
+
+    // Send notifications asynchronously based on what was updated
+    try {
+      const wsService = req.app.get('wsService');
+      
+      // Check if this is a revision request (status changed to 'ditolak' by owner)
+      if (status === 'ditolak' && req.user.role === 'owner') {
+        sendKomplainRevisionNotification(complaintResponse, req.user, wsService)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Revision request notification sent successfully for komplain: ${complaintResponse.judul_komplain}`);
+            } else {
+              console.log(`❌ Failed to send revision request notification for komplain: ${complaintResponse.judul_komplain}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error sending revision request notification:', error);
+          });
+      }
+      
+      // Check if this is a rating submission (rating_kepuasan is provided by owner)
+      if (rating_kepuasan && rating_kepuasan > 0 && req.user.role === 'owner') {
+        sendKomplainRatingNotification(complaintResponse, req.user, rating_kepuasan, komentar_kepuasan, wsService)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Rating notification sent successfully for komplain: ${complaintResponse.judul_komplain}`);
+            } else {
+              console.log(`❌ Failed to send rating notification for komplain: ${complaintResponse.judul_komplain}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error sending rating notification:', error);
+          });
+      }
+    } catch (notificationError) {
+      console.error('Error setting up update notifications:', notificationError);
     }
 
     res.json({
@@ -430,7 +506,7 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
     const statusStats = await DaftarKomplain.findAll({
       attributes: [
         'status',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
       ],
       group: ['status']
     });
@@ -438,7 +514,7 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
     const priorityStats = await DaftarKomplain.findAll({
       attributes: [
         'prioritas',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
       ],
       group: ['prioritas']
     });
@@ -446,7 +522,7 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
     const categoryStats = await DaftarKomplain.findAll({
       attributes: [
         'kategori',
-        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+        [Sequelize.fn('COUNT', Sequelize.col('id')), 'count']
       ],
       group: ['kategori']
     });

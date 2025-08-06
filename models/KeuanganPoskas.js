@@ -118,12 +118,12 @@ class KeuanganPoskas {
   async create(data) {
     const connection = await this.getConnection();
     try {
-      const { id_user, tanggal_poskas, isi_poskas } = data;
+      const { id_user, tanggal_poskas, isi_poskas, images } = data;
       
       const [result] = await connection.execute(
-        `INSERT INTO ${this.tableName} (id_user, tanggal_poskas, isi_poskas) 
-         VALUES (?, ?, ?)`,
-        [id_user, tanggal_poskas, isi_poskas]
+        `INSERT INTO ${this.tableName} (id_user, tanggal_poskas, isi_poskas, images) 
+         VALUES (?, ?, ?, ?)`,
+        [id_user, tanggal_poskas, isi_poskas, images ? JSON.stringify(images) : null]
       );
       
       return {
@@ -141,13 +141,13 @@ class KeuanganPoskas {
   async update(id, data) {
     const connection = await this.getConnection();
     try {
-      const { tanggal_poskas, isi_poskas } = data;
+      const { tanggal_poskas, isi_poskas, images } = data;
       
       const [result] = await connection.execute(
         `UPDATE ${this.tableName} 
-         SET tanggal_poskas = ?, isi_poskas = ?, updated_at = CURRENT_TIMESTAMP 
+         SET tanggal_poskas = ?, isi_poskas = ?, images = ?, updated_at = CURRENT_TIMESTAMP 
          WHERE id = ? AND status_deleted = 0`,
-        [tanggal_poskas, isi_poskas, id]
+        [tanggal_poskas, isi_poskas, images ? JSON.stringify(images) : null, id]
       );
       
       if (result.affectedRows === 0) {

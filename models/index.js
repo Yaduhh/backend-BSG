@@ -6,6 +6,9 @@ const ChatRoom = require('./ChatRoom');
 const Message = require('./Message');
 const KeuanganPoskas = require('./KeuanganPoskas');
 const PicMenu = require('./PicMenu');
+const Pengumuman = require('./Pengumuman');
+const TimMerah = require('./TimMerah');
+const TimBiru = require('./TimBiru');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -33,6 +36,18 @@ Message.belongsTo(ChatRoom, { foreignKey: 'room_id', targetKey: 'room_id' });
 User.hasMany(Message, { foreignKey: 'sender_id', as: 'messages' });
 Message.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' });
 
+// Pengumuman associations
+User.hasMany(Pengumuman, { foreignKey: 'penulis_id', as: 'pengumuman' });
+Pengumuman.belongsTo(User, { foreignKey: 'penulis_id', as: 'penulis' });
+
+// TimMerah associations
+User.hasMany(TimMerah, { foreignKey: 'created_by', as: 'timMerahEntries' });
+TimMerah.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+// TimBiru associations
+User.hasMany(TimBiru, { foreignKey: 'created_by', as: 'timBiruEntries' });
+TimBiru.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
 // KeuanganPoskas associations - commented out because it's not a Sequelize model
 // User.hasMany(KeuanganPoskas, { foreignKey: 'user_id' });
 // KeuanganPoskas.belongsTo(User, { foreignKey: 'user_id' });
@@ -45,5 +60,8 @@ module.exports = {
   ChatRoom,
   Message,
   KeuanganPoskas,
-  PicMenu
+  PicMenu,
+  Pengumuman,
+  TimMerah,
+  TimBiru
 }; 

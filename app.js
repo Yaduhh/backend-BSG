@@ -22,6 +22,13 @@ const keuanganPoskasRoutes = require('./routes/keuanganPoskas');
 const adminProfileRoutes = require('./routes/adminProfile');
 const adminKomplainRoutes = require('./routes/adminKomplain');
 const daftarKomplainRoutes = require('./routes/daftarKomplain');
+const pengumumanRoutes = require('./routes/pengumuman');
+const adminPengumumanRoutes = require('./routes/adminPengumuman');
+const ownerKeuanganPoskasRoutes = require('./routes/ownerKeuanganPoskas');
+const timMerahBiruRoutes = require('./routes/timMerahBiru');
+const ownerTimMerahBiruRoutes = require('./routes/ownerTimMerahBiru');
+const ownerTrainingRoutes = require('./routes/ownerTraining');
+const adminTrainingRoutes = require('./routes/adminTraining');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -51,8 +58,15 @@ app.use('/api/daftar-komplain', daftarKomplainRoutes);
 app.use('/api/admin-tugas', adminTugasRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/keuangan-poskas', keuanganPoskasRoutes);
+app.use('/api/owner/keuangan-poskas', ownerKeuanganPoskasRoutes);
+app.use('/api/owner/tim-merah-biru', ownerTimMerahBiruRoutes);
+app.use('/api/owner/training', ownerTrainingRoutes);
+app.use('/api/pengumuman', pengumumanRoutes);
 app.use('/api/admin', adminProfileRoutes);
+app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
+app.use('/api/admin/training', adminTrainingRoutes);
+app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/health', require('./routes/health'));
 
 // Serve static files from uploads directory

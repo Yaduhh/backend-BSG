@@ -1025,6 +1025,138 @@ const sendKomplainRatingNotification = async (komplainData, ownerUser, rating, k
   }
 };
 
+// Send task status update notification
+const sendTaskStatusUpdateNotification = async (taskData, adminUser, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const newStatus = taskData.status;
+    const pemberiTugasId = taskData.pemberi_tugas;
+    
+    // Get pemberi tugas user
+    const pemberiTugas = await User.findByPk(pemberiTugasId);
+    if (!pemberiTugas) {
+      console.error('Pemberi tugas not found for task:', taskData.id);
+      return false;
+    }
+
+    // Format status text
+    const statusText = {
+      'belum': 'Belum Dimulai',
+      'proses': 'Sedang Diproses',
+      'revisi': 'Perlu Revisi',
+      'selesai': 'Selesai'
+    }[newStatus] || 'Status Tidak Diketahui';
+
+    // Notification for pemberi tugas (owner) - status update
+    const title = `📋 Status Tugas Diperbarui: ${taskTitle}`;
+    const body = `Status tugas Anda telah diperbarui menjadi "${statusText}" oleh admin ${adminUser.nama}`;
+    const data = {
+      type: 'task_status_update',
+      task_id: taskData.id,
+      task_title: taskTitle,
+      new_status: newStatus,
+      status_text: statusText,
+      admin_id: adminUser.id,
+      admin_name: adminUser.nama
+    };
+
+    // Send push notification
+    await sendNotificationToUser(pemberiTugasId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService) {
+      try {
+        const notificationData = {
+          type: 'task_status_update',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          new_status: newStatus,
+          status_text: statusText,
+          admin_id: adminUser.id,
+          admin_name: adminUser.nama,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(pemberiTugasId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for task status update:', wsError);
+      }
+    }
+
+    console.log(`✅ Task status update notification sent to pemberi tugas: ${pemberiTugas.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task status update notification:', error);
+    return false;
+  }
+};
+
+// Send task completion notification
+const sendTaskCompletionNotification = async (taskData, adminUser, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const pemberiTugasId = taskData.pemberi_tugas;
+    const catatan = taskData.catatan;
+    
+    // Get pemberi tugas user
+    const pemberiTugas = await User.findByPk(pemberiTugasId);
+    if (!pemberiTugas) {
+      console.error('Pemberi tugas not found for task:', taskData.id);
+      return false;
+    }
+
+    // Notification for pemberi tugas (owner) - task completed
+    const title = `✅ Tugas Selesai: ${taskTitle}`;
+    const body = `Tugas Anda telah selesai ditangani oleh admin ${adminUser.nama}. ${catatan ? `Catatan: ${catatan}` : ''}`;
+    const data = {
+      type: 'task_completed',
+      task_id: taskData.id,
+      task_title: taskTitle,
+      admin_id: adminUser.id,
+      admin_name: adminUser.nama,
+      catatan: catatan
+    };
+
+    // Send push notification
+    await sendNotificationToUser(pemberiTugasId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService) {
+      try {
+        const notificationData = {
+          type: 'task_completed',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          admin_id: adminUser.id,
+          admin_name: adminUser.nama,
+          catatan: catatan,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(pemberiTugasId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for task completion:', wsError);
+      }
+    }
+
+    console.log(`✅ Task completion notification sent to pemberi tugas: ${pemberiTugas.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task completion notification:', error);
+    return false;
+  }
+};
+
 // Check notification receipts
 const checkNotificationReceipts = async (tickets) => {
   try {
@@ -1077,5 +1209,7 @@ module.exports = {
   sendKomplainReprocessedNotification,
   sendKomplainRevisionNotification,
   sendKomplainRatingNotification,
+  sendTaskStatusUpdateNotification,
+  sendTaskCompletionNotification,
   checkNotificationReceipts
 }; 

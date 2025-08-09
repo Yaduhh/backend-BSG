@@ -3,6 +3,10 @@ const router = express.Router();
 const { DaftarTugas, User } = require('../models');
 const { Op } = require('sequelize');
 const { authenticateAdmin } = require('../middleware/auth');
+const { 
+  sendTaskStatusUpdateNotification,
+  sendTaskCompletionNotification 
+} = require('../services/notificationService');
 
 // Apply authentication middleware to all routes
 router.use(authenticateAdmin);
@@ -275,6 +279,9 @@ router.put('/:id', async (req, res) => {
     // Handle completed_at
     if (completed_at) updateData.completed_at = new Date(completed_at);
 
+    // Get old status for comparison
+    const oldStatus = task.status;
+    
     await task.update(updateData);
 
     // Fetch updated task with user data and parse JSON fields
@@ -308,6 +315,47 @@ router.put('/:id', async (req, res) => {
         taskDataResponse.lampiran = JSON.parse(taskDataResponse.lampiran);
       } catch (e) {
         taskDataResponse.lampiran = [];
+      }
+    }
+
+    // Send notifications if status changed
+    if (status && status !== oldStatus) {
+      try {
+        // Get wsService instance from app
+        const wsService = req.app.get('wsService');
+        
+        // Get current admin user
+        const adminUser = req.user;
+        
+        if (status === 'selesai') {
+          // Send completion notification to pemberi tugas (owner)
+          sendTaskCompletionNotification(taskDataResponse, adminUser, wsService)
+            .then(success => {
+              if (success) {
+                console.log(`✅ Task completion notification sent for task: ${taskDataResponse.judul_tugas}`);
+              } else {
+                console.log(`❌ Failed to send task completion notification for task: ${taskDataResponse.judul_tugas}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error sending task completion notification:', error);
+            });
+        } else {
+          // Send status update notification to pemberi tugas (owner)
+          sendTaskStatusUpdateNotification(taskDataResponse, adminUser, wsService)
+            .then(success => {
+              if (success) {
+                console.log(`✅ Task status update notification sent for task: ${taskDataResponse.judul_tugas}`);
+              } else {
+                console.log(`❌ Failed to send task status update notification for task: ${taskDataResponse.judul_tugas}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error sending task status update notification:', error);
+            });
+        }
+      } catch (notificationError) {
+        console.error('Error setting up task status notifications:', notificationError);
       }
     }
 

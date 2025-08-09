@@ -3,6 +3,7 @@ const { body, validationResult } = require('express-validator');
 const { sequelize, Op } = require('../config/database');
 const User = require('../models/User');
 const router = express.Router();
+const { authenticateToken } = require('../middleware/auth');
 
 // Middleware untuk validasi error
 const handleValidationErrors = (req, res, next) => {
@@ -309,6 +310,154 @@ router.patch('/:id/training', [
     res.status(500).json({
       success: false,
       message: 'Internal server error'
+    });
+  }
+});
+
+// Get all users with role filtering (Owner only)
+router.get('/accounts', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is owner
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Akses ditolak. Hanya owner yang dapat mengakses daftar akun.' 
+      });
+    }
+
+    const { role } = req.query;
+    let whereClause = {};
+    
+    // Filter by role if provided
+    if (role && (role === 'admin' || role === 'owner')) {
+      whereClause.role = role;
+    }
+
+    const users = await User.findAll({
+      where: whereClause,
+      attributes: [
+        'id', 
+        'nama', 
+        'email', 
+        'role', 
+        'status', 
+        'createdAt', 
+        'updatedAt',
+        'lastOnline'
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: users,
+      message: 'Daftar akun berhasil diambil'
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Terjadi kesalahan saat mengambil daftar akun' 
+    });
+  }
+});
+
+// Update user status (Owner only)
+router.patch('/accounts/:id/status', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is owner
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Akses ditolak. Hanya owner yang dapat mengubah status akun.' 
+      });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!status || !['active', 'inactive'].includes(status)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Status harus berupa "active" atau "inactive"' 
+      });
+    }
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Akun tidak ditemukan' 
+      });
+    }
+
+    // Prevent owner from deactivating themselves
+    if (user.id === req.user.id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tidak dapat mengubah status akun sendiri' 
+      });
+    }
+
+    await user.update({ status });
+    
+    res.json({
+      success: true,
+      message: `Status akun berhasil diubah menjadi ${status}`,
+      data: {
+        id: user.id,
+        status: user.status
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Terjadi kesalahan saat mengubah status akun' 
+    });
+  }
+});
+
+// Delete user (Owner only)
+router.delete('/accounts/:id', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is owner
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Akses ditolak. Hanya owner yang dapat menghapus akun.' 
+      });
+    }
+
+    const { id } = req.params;
+
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Akun tidak ditemukan' 
+      });
+    }
+
+    // Prevent owner from deleting themselves
+    if (user.id === req.user.id) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Tidak dapat menghapus akun sendiri' 
+      });
+    }
+
+    await user.destroy();
+    
+    res.json({
+      success: true,
+      message: 'Akun berhasil dihapus'
+    });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Terjadi kesalahan saat menghapus akun' 
     });
   }
 });

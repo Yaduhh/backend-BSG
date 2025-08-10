@@ -10,10 +10,6 @@ const Message = sequelize.define('Message', {
   room_id: {
     type: DataTypes.STRING,
     allowNull: false,
-    references: {
-      model: 'chat_rooms',
-      key: 'room_id'
-    }
   },
   sender_id: {
     type: DataTypes.INTEGER,
@@ -30,6 +26,10 @@ const Message = sequelize.define('Message', {
   message_type: {
     type: DataTypes.ENUM('text', 'image', 'file'),
     defaultValue: 'text',
+  },
+  is_group_message: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
   },
   is_read: {
     type: DataTypes.BOOLEAN,
@@ -55,7 +55,8 @@ const Message = sequelize.define('Message', {
 // Define associations
 Message.associate = (models) => {
   Message.belongsTo(models.User, { as: 'sender', foreignKey: 'sender_id' });
-  Message.belongsTo(models.ChatRoom, { foreignKey: 'room_id', targetKey: 'room_id' });
+  // Note: Removed ChatRoom association to avoid foreign key constraint issues
+  // Group messages don't need to reference chat_rooms table
 };
 
 module.exports = Message; 

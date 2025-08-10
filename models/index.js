@@ -4,6 +4,8 @@ const DaftarTugas = require('./DaftarTugas');
 const DaftarKomplain = require('./DaftarKomplain');
 const ChatRoom = require('./ChatRoom');
 const Message = require('./Message');
+const ChatGroup = require('./ChatGroup');
+const ChatGroupMember = require('./ChatGroupMember');
 const KeuanganPoskas = require('./KeuanganPoskas');
 const PicMenu = require('./PicMenu');
 const Pengumuman = require('./Pengumuman');
@@ -52,6 +54,16 @@ TimBiru.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 // User.hasMany(KeuanganPoskas, { foreignKey: 'user_id' });
 // KeuanganPoskas.belongsTo(User, { foreignKey: 'user_id' });
 
+// ChatGroup associations
+User.hasMany(ChatGroup, { foreignKey: 'created_by', as: 'createdGroups' });
+ChatGroup.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+ChatGroup.hasMany(ChatGroupMember, { foreignKey: 'group_id', sourceKey: 'group_id' });
+ChatGroupMember.belongsTo(ChatGroup, { foreignKey: 'group_id', targetKey: 'group_id' });
+
+User.hasMany(ChatGroupMember, { foreignKey: 'user_id', as: 'groupMemberships' });
+ChatGroupMember.belongsTo(User, { foreignKey: 'user_id', as: 'member' });
+
 module.exports = {
   User,
   UserDevice,
@@ -59,6 +71,8 @@ module.exports = {
   DaftarKomplain,
   ChatRoom,
   Message,
+  ChatGroup,
+  ChatGroupMember,
   KeuanganPoskas,
   PicMenu,
   Pengumuman,

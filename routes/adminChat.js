@@ -167,7 +167,7 @@ router.post('/send', authenticateToken, authenticateAdmin, async (req, res) => {
 
     // Create message
     const newMessage = await Message.create({
-      room_id: `${chatRoom.user1_id}_${chatRoom.user2_id}`,
+      room_id: chatRoom.room_id, // Use chatRoom.room_id instead of concatenation
       sender_id: sender_id,
       message: message,
       message_type: 'text',
@@ -205,9 +205,51 @@ router.post('/send', authenticateToken, authenticateAdmin, async (req, res) => {
       // Send WebSocket message for real-time updates
       if (wsService) {
         try {
-          const room_id = `${chatRoom.user1_id}_${chatRoom.user2_id}`;
-          console.log('📡 Admin: Sending WebSocket message to room:', room_id);
-          wsService.broadcastToRoom(`chat_${room_id}`, {
+          // Use chatRoom.room_id for consistency
+          const room_id = chatRoom.room_id;
+          
+          // Auto-join both users to the room if they're connected
+          const senderWs = wsService.connectedUsers.get(sender_id);
+          const receiverWs = wsService.connectedUsers.get(actualReceiver);
+          
+          // Ensure room exists in WebSocket maps
+          if (!wsService.roomUsers.has(`chat_${room_id}`)) {
+            wsService.roomUsers.set(`chat_${room_id}`, new Set());
+          }
+          
+          if (senderWs && senderWs.readyState === 1) { // WebSocket.OPEN
+            // Join sender to room
+            if (!wsService.userRooms.has(sender_id)) {
+              wsService.userRooms.set(sender_id, new Set());
+            }
+            wsService.userRooms.get(sender_id).add(`chat_${room_id}`);
+            
+            // Add sender to room's users
+            wsService.roomUsers.get(`chat_${room_id}`).add(sender_id);
+          }
+          
+          if (receiverWs && receiverWs.readyState === 1) { // WebSocket.OPEN
+            // Join receiver to room
+            if (!wsService.userRooms.has(actualReceiver)) {
+              wsService.userRooms.set(actualReceiver, new Set());
+            }
+            wsService.userRooms.get(actualReceiver).add(`chat_${room_id}`);
+            
+            // Add receiver to room's users
+            wsService.roomUsers.get(`chat_${room_id}`).add(actualReceiver);
+          }
+          
+          // Broadcast the message immediately without delay
+          const roomName = `chat_${room_id}`;
+          
+          console.log('📡 Broadcasting WebSocket message to room:', roomName, {
+            roomId: room_id,
+            message: message,
+            sender: sender_id
+          });
+          
+          // Broadcast the message
+          wsService.broadcastToRoom(roomName, {
             type: 'new_message',
             data: {
               roomId: room_id,
@@ -242,7 +284,7 @@ router.post('/send', authenticateToken, authenticateAdmin, async (req, res) => {
       message: 'Pesan berhasil dikirim',
       data: {
         ...messageWithSender.toJSON(),
-        room_id: chatRoom.id // Include room_id for new chats
+        room_id: chatRoom.room_id // Use chatRoom.room_id for consistency
       }
     });
   } catch (error) {

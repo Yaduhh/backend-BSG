@@ -246,16 +246,52 @@ router.post('/message', async (req, res) => {
     // Send WebSocket message for real-time updates
     if (wsService) {
       try {
-        console.log('📡 Sending WebSocket message to room:', room_id);
-        wsService.broadcastToRoom(`chat_${room_id}`, {
-          type: 'new_message',
-          data: {
-            roomId: room_id,
-            message: message,
-            sender: sender_id,
-            timestamp: new Date()
+        // Auto-join both users to the room if they're connected
+        const senderWs = wsService.connectedUsers.get(sender_id);
+        const receiverWs = wsService.connectedUsers.get(receiverId);
+        
+        // Ensure room exists in WebSocket maps
+        if (!wsService.roomUsers.has(`chat_${room_id}`)) {
+          wsService.roomUsers.set(`chat_${room_id}`, new Set());
+        }
+        
+        if (senderWs && senderWs.readyState === 1) { // WebSocket.OPEN
+          // Join sender to room
+          if (!wsService.userRooms.has(sender_id)) {
+            wsService.userRooms.set(sender_id, new Set());
           }
-        });
+          wsService.userRooms.get(sender_id).add(`chat_${room_id}`);
+          
+          // Add sender to room's users
+          wsService.roomUsers.get(`chat_${room_id}`).add(sender_id);
+        }
+        
+        if (receiverWs && receiverWs.readyState === 1) { // WebSocket.OPEN
+          // Join receiver to room
+          if (!wsService.userRooms.has(receiverId)) {
+            wsService.userRooms.set(receiverId, new Set());
+          }
+          wsService.userRooms.get(receiverId).add(`chat_${room_id}`);
+          
+          // Add receiver to room's users
+          wsService.roomUsers.get(`chat_${room_id}`).add(receiverId);
+        }
+        
+        // Small delay to ensure room setup is complete before broadcasting
+        setTimeout(() => {
+          const roomName = `chat_${room_id}`;
+          
+          // Broadcast the message
+          wsService.broadcastToRoom(roomName, {
+            type: 'new_message',
+            data: {
+              roomId: room_id,
+              message: message,
+              sender: sender_id,
+              timestamp: new Date()
+            }
+          });
+        }, 100);
       } catch (wsError) {
         console.error('WebSocket broadcast error:', wsError);
       }
@@ -263,13 +299,6 @@ router.post('/message', async (req, res) => {
     
     // Send notification asynchronously (don't wait for it)
     sendChatNotification(sender_id, receiverId, message, sender.nama, wsService)
-      .then(success => {
-        if (success) {
-          console.log(`Notification sent to user ${receiverId}`);
-        } else {
-          console.log(`Failed to send notification to user ${receiverId}`);
-        }
-      })
       .catch(error => {
         console.error('Error sending notification:', error);
       });

@@ -3,15 +3,11 @@ const socketService = (io) => {
   const connectedUsers = new Map();
 
   io.on('connection', (socket) => {
-    console.log('🔌 User connected:', socket.id);
-    
     // User login/register
     socket.on('user_login', (userId) => {
       connectedUsers.set(userId, socket.id);
       socket.userId = userId;
       socket.join(`user_${userId}`);
-      
-      console.log(`👤 User ${userId} logged in`);
       
       // Update last_login in UserDevice table
       const { UserDevice } = require('../models');
@@ -38,13 +34,11 @@ const socketService = (io) => {
     // Join room untuk notifikasi tertentu
     socket.on('join_room', (room) => {
       socket.join(room);
-      console.log(`🚪 User ${socket.id} joined room: ${room}`);
     });
     
     // Leave room
     socket.on('leave_room', (room) => {
       socket.leave(room);
-      console.log(`🚪 User ${socket.id} left room: ${room}`);
     });
     
     // Send notification to specific user
@@ -55,9 +49,6 @@ const socketService = (io) => {
           ...data,
           timestamp: new Date()
         });
-        console.log(`📢 Notification sent to user ${data.userId}`);
-      } else {
-        console.log(`❌ User ${data.userId} not found`);
       }
     });
     
@@ -67,7 +58,6 @@ const socketService = (io) => {
         ...data,
         timestamp: new Date()
       });
-      console.log(`📢 Broadcast notification sent to all users`);
     });
     
     // Chat message
@@ -76,14 +66,12 @@ const socketService = (io) => {
         ...data,
         timestamp: new Date()
       });
-      console.log(`💬 New chat message from ${data.sender}`);
     });
     
     // Disconnect
     socket.on('disconnect', () => {
       if (socket.userId) {
         connectedUsers.delete(socket.userId);
-        console.log(`👤 User ${socket.userId} disconnected`);
         
         // Update last online time in UserDevice table
         const { UserDevice } = require('../models');
@@ -99,13 +87,12 @@ const socketService = (io) => {
           console.error('Error updating last online time:', error);
         });
       }
-      console.log('🔌 User disconnected:', socket.id);
     });
   });
 
   // Error handling untuk WebSocket
   io.on('error', (error) => {
-    console.error('❌ WebSocket Error:', error);
+    console.error('WebSocket Error:', error);
   });
 
   return {

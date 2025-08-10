@@ -6,7 +6,6 @@ require('dotenv').config();
 // Import middleware dan routes
 const setupMiddleware = require('./middleware');
 const routes = require('./routes');
-const webSocketService = require('./services/webSocketService');
 
 // Import specific routes
 const authRoutes = require('./routes/auth');
@@ -37,10 +36,11 @@ const models = require('./models'); // Initialize models and associations
 const app = express();
 const server = http.createServer(app);
 
-// Setup WebSocket service
+// WebSocket service setup
+const webSocketService = require('./services/webSocketService');
 const wsService = webSocketService(server);
 
-// Simpan wsService instance agar bisa diakses di routes
+// Make wsService available to all routes
 app.set('wsService', wsService);
 
 // Setup middleware

@@ -324,12 +324,12 @@ router.put('/:id', async (req, res) => {
         // Get wsService instance from app
         const wsService = req.app.get('wsService');
         
-        // Get current admin user
-        const adminUser = req.user;
+        // Get current user (admin who updated the task)
+        const currentUser = req.user || { id: 1, nama: 'Admin' }; // Fallback if no user context
         
         if (status === 'selesai') {
           // Send completion notification to pemberi tugas (owner)
-          sendTaskCompletionNotification(taskDataResponse, adminUser, wsService)
+          sendTaskCompletionNotification(taskDataResponse, currentUser, wsService)
             .then(success => {
               if (success) {
                 console.log(`✅ Task completion notification sent for task: ${taskDataResponse.judul_tugas}`);
@@ -342,7 +342,7 @@ router.put('/:id', async (req, res) => {
             });
         } else {
           // Send status update notification to pemberi tugas (owner)
-          sendTaskStatusUpdateNotification(taskDataResponse, adminUser, wsService)
+          sendTaskStatusUpdateNotification(taskDataResponse, currentUser, wsService)
             .then(success => {
               if (success) {
                 console.log(`✅ Task status update notification sent for task: ${taskDataResponse.judul_tugas}`);

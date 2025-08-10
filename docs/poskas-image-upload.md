@@ -98,7 +98,7 @@ const uploadImagesToServer = async (images) => {
     });
   });
 
-  const response = await fetch('http://192.168.110.232:3000/api/upload/poskas', {
+  const response = await fetch('http://192.168.1.2:3000/api/upload/poskas', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -127,12 +127,12 @@ const imagesWithServerUrls = uploadedImages.map((img, index) => {
 
 ### Format URL
 ```
-http://192.168.110.232:3000/uploads/poskas/poskas-{timestamp}-{random}.{ext}
+http://192.168.1.2:3000/uploads/poskas/poskas-{timestamp}-{random}.{ext}
 ```
 
 ### Contoh URL
 ```
-http://192.168.110.232:3000/uploads/poskas/poskas-1703123456789-123456789.jpg
+http://192.168.1.2:3000/uploads/poskas/poskas-1703123456789-123456789.jpg
 ```
 
 ## Error Handling
@@ -196,7 +196,7 @@ console.log('Uploaded files:', result.data.length);
 ```javascript
 const renderImage = (image) => {
   const imageUrl = image.url 
-    ? `http://192.168.110.232:3000${image.url}`
+    ? `http://192.168.1.2:3000${image.url}`
     : image.uri;
     
   return (

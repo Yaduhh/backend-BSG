@@ -162,7 +162,7 @@ const sendTaskNotification = async (taskData, pemberiTugas, wsService = null) =>
         await sendNotificationToUser(taskData.penerima_tugas, title, body, data);
 
         // Send WebSocket notification if user is online
-        if (wsService) {
+        if (wsService && wsService.sendNotificationToUser) {
           try {
             const notificationData = {
               type: 'task_assigned',
@@ -209,7 +209,7 @@ const sendTaskNotification = async (taskData, pemberiTugas, wsService = null) =>
           await sendNotificationToUser(userId, title, body, data);
 
           // Send WebSocket notification if user is online
-          if (wsService) {
+          if (wsService && wsService.sendNotificationToUser) {
             try {
               const notificationData = {
                 type: 'task_related',
@@ -1067,7 +1067,7 @@ const sendTaskStatusUpdateNotification = async (taskData, adminUser, wsService =
     await sendNotificationToUser(pemberiTugasId, title, body, data);
 
     // Send WebSocket notification if user is online
-    if (wsService) {
+    if (wsService && wsService.sendNotificationToUser) {
       try {
         const notificationData = {
           type: 'task_status_update',
@@ -1129,7 +1129,7 @@ const sendTaskCompletionNotification = async (taskData, adminUser, wsService = n
     await sendNotificationToUser(pemberiTugasId, title, body, data);
 
     // Send WebSocket notification if user is online
-    if (wsService) {
+    if (wsService && wsService.sendNotificationToUser) {
       try {
         const notificationData = {
           type: 'task_completed',
@@ -1153,6 +1153,199 @@ const sendTaskCompletionNotification = async (taskData, adminUser, wsService = n
     return true;
   } catch (error) {
     console.error('Error sending task completion notification:', error);
+    return false;
+  }
+};
+
+// Send task update notification from owner to admin
+const sendTaskUpdateNotification = async (taskData, ownerUser, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const penerimaTugasId = taskData.penerima_tugas;
+    
+    // Get penerima tugas user (admin)
+    const penerimaTugas = await User.findByPk(penerimaTugasId);
+    if (!penerimaTugas) {
+      console.error('Penerima tugas not found for task:', taskData.id);
+      return false;
+    }
+
+    // Notification for penerima tugas (admin) - task updated by owner
+    const title = `📝 Tugas Diperbarui: ${taskTitle}`;
+    const body = `Owner ${ownerUser.nama} telah memperbarui tugas yang ditugaskan kepada Anda. Silakan periksa perubahan yang ada.`;
+    const data = {
+      type: 'task_updated_by_owner',
+      task_id: taskData.id,
+      task_title: taskTitle,
+      owner_id: ownerUser.id,
+      owner_name: ownerUser.nama
+    };
+
+    // Send push notification
+    await sendNotificationToUser(penerimaTugasId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService && wsService.sendNotificationToUser) {
+      try {
+        const notificationData = {
+          type: 'task_updated_by_owner',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          owner_id: ownerUser.id,
+          owner_name: ownerUser.nama,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(penerimaTugasId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for task update by owner:', wsError);
+      }
+    }
+
+    console.log(`✅ Task update notification sent to penerima tugas: ${penerimaTugas.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task update notification:', error);
+    return false;
+  }
+};
+
+// Send task deletion notification from owner to admin
+const sendTaskDeletionNotification = async (taskData, ownerUser, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const penerimaTugasId = taskData.penerima_tugas;
+    
+    // Get penerima tugas user (admin)
+    const penerimaTugas = await User.findByPk(penerimaTugasId);
+    if (!penerimaTugas) {
+      console.error('Penerima tugas not found for task:', taskData.id);
+      return false;
+    }
+
+    // Notification for penerima tugas (admin) - task deleted by owner
+    const title = `🗑️ Tugas Dihapus: ${taskTitle}`;
+    const body = `Owner ${ownerUser.nama} telah menghapus tugas yang sebelumnya ditugaskan kepada Anda.`;
+    const data = {
+      type: 'task_deleted_by_owner',
+      task_id: taskData.id,
+      task_title: taskTitle,
+      owner_id: ownerUser.id,
+      owner_name: ownerUser.nama
+    };
+
+    // Send push notification
+    await sendNotificationToUser(penerimaTugasId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService && wsService.sendNotificationToUser) {
+      try {
+        const notificationData = {
+          type: 'task_deleted_by_owner',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          owner_id: ownerUser.id,
+          owner_name: ownerUser.nama,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(penerimaTugasId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for task deletion by owner:', wsError);
+      }
+    }
+
+    console.log(`✅ Task deletion notification sent to penerima tugas: ${penerimaTugas.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task deletion notification:', error);
+    return false;
+  }
+};
+
+// Send task priority change notification
+const sendTaskPriorityChangeNotification = async (taskData, ownerUser, oldPriority, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const penerimaTugasId = taskData.penerima_tugas;
+    const newPriority = taskData.skala_prioritas;
+    
+    // Get penerima tugas user (admin)
+    const penerimaTugas = await User.findByPk(penerimaTugasId);
+    if (!penerimaTugas) {
+      console.error('Penerima tugas not found for task:', taskData.id);
+      return false;
+    }
+
+    // Format priority text
+    const priorityText = {
+      'mendesak': 'Mendesak',
+      'penting': 'Penting', 
+      'berproses': 'Berproses'
+    };
+
+    const oldPriorityText = priorityText[oldPriority] || oldPriority;
+    const newPriorityText = priorityText[newPriority] || newPriority;
+
+    // Notification for penerima tugas (admin) - priority changed
+    const title = `⚡ Prioritas Tugas Diubah: ${taskTitle}`;
+    const body = `Owner ${ownerUser.nama} telah mengubah prioritas tugas dari "${oldPriorityText}" menjadi "${newPriorityText}".`;
+    const data = {
+      type: 'task_priority_changed',
+      task_id: taskData.id,
+      task_title: taskTitle,
+      owner_id: ownerUser.id,
+      owner_name: ownerUser.nama,
+      old_priority: oldPriority,
+      new_priority: newPriority,
+      old_priority_text: oldPriorityText,
+      new_priority_text: newPriorityText
+    };
+
+    // Send push notification
+    await sendNotificationToUser(penerimaTugasId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService && wsService.sendNotificationToUser) {
+      try {
+        const notificationData = {
+          type: 'task_priority_changed',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          owner_id: ownerUser.id,
+          owner_name: ownerUser.nama,
+          old_priority: oldPriority,
+          new_priority: newPriority,
+          old_priority_text: oldPriorityText,
+          new_priority_text: newPriorityText,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(penerimaTugasId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for task priority change:', wsError);
+      }
+    }
+
+    console.log(`✅ Task priority change notification sent to penerima tugas: ${penerimaTugas.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending task priority change notification:', error);
     return false;
   }
 };
@@ -1211,5 +1404,8 @@ module.exports = {
   sendKomplainRatingNotification,
   sendTaskStatusUpdateNotification,
   sendTaskCompletionNotification,
+  sendTaskUpdateNotification,
+  sendTaskDeletionNotification,
+  sendTaskPriorityChangeNotification,
   checkNotificationReceipts
 }; 

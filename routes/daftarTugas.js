@@ -5,7 +5,10 @@ const { Op } = require('sequelize');
 const { 
   sendTaskNotification, 
   sendTaskStatusUpdateNotification,
-  sendTaskCompletionNotification 
+  sendTaskCompletionNotification,
+  sendTaskUpdateNotification,
+  sendTaskDeletionNotification,
+  sendTaskPriorityChangeNotification
 } = require('../services/notificationService');
 
 // Get all tasks with pagination and filters
@@ -486,6 +489,47 @@ router.put('/:id', async (req, res) => {
       }
     }
 
+    // Send notifications for other changes (priority, description, etc.)
+    if (req.user && req.user.role === 'owner') {
+      try {
+        // Get wsService instance from app
+        const wsService = req.app.get('wsService');
+        
+        // Check if priority changed
+        if (skala_prioritas && skala_prioritas !== task.skala_prioritas) {
+          sendTaskPriorityChangeNotification(taskDataResponse, req.user, task.skala_prioritas, wsService)
+            .then(success => {
+              if (success) {
+                console.log(`✅ Task priority change notification sent for task: ${taskDataResponse.judul_tugas}`);
+              } else {
+                console.log(`❌ Failed to send task priority change notification for task: ${taskDataResponse.judul_tugas}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error sending task priority change notification:', error);
+            });
+        }
+
+        // Check if other important fields changed (excluding status)
+        const hasOtherChanges = judul_tugas || keterangan_tugas || target_selesai || penerima_tugas || pihak_terkait || lampiran;
+        if (hasOtherChanges) {
+          sendTaskUpdateNotification(taskDataResponse, req.user, wsService)
+            .then(success => {
+              if (success) {
+                console.log(`✅ Task update notification sent for task: ${taskDataResponse.judul_tugas}`);
+              } else {
+                console.log(`❌ Failed to send task update notification for task: ${taskDataResponse.judul_tugas}`);
+              }
+            })
+            .catch(error => {
+              console.error('Error sending task update notification:', error);
+            });
+        }
+      } catch (notificationError) {
+        console.error('Error setting up task update notifications:', notificationError);
+      }
+    }
+
     res.json({
       success: true,
       message: 'Task updated successfully',
@@ -500,30 +544,49 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Delete task
+// DELETE /daftar-tugas/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const task = await DaftarTugas.findByPk(req.params.id);
+    const { id } = req.params;
     
+    // Get task details before deletion for notification
+    const task = await DaftarTugas.findByPk(id);
     if (!task) {
-      return res.status(404).json({
-        success: false,
-        message: 'Task not found'
-      });
+      return res.status(404).json({ error: 'Tugas tidak ditemukan' });
     }
 
-    await task.destroy();
+    // Send deletion notification if user is owner
+    if (req.user && req.user.role === 'owner') {
+      try {
+        // Get wsService instance from app
+        const wsService = req.app.get('wsService');
+        
+        // Send deletion notification to penerima tugas (admin)
+        sendTaskDeletionNotification(task, req.user, wsService)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Task deletion notification sent for task: ${task.judul_tugas}`);
+            } else {
+              console.log(`❌ Failed to send task deletion notification for task: ${task.judul_tugas}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error sending task deletion notification:', error);
+          });
+      } catch (notificationError) {
+        console.error('Error setting up task deletion notification:', notificationError);
+      }
+    }
 
-    res.json({
-      success: true,
-      message: 'Task deleted successfully'
+    // Delete the task
+    await DaftarTugas.destroy({
+      where: { id }
     });
+
+    res.json({ message: 'Tugas berhasil dihapus' });
   } catch (error) {
     console.error('Error deleting task:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
+    res.status(500).json({ error: 'Gagal menghapus tugas' });
   }
 });
 

@@ -56,8 +56,6 @@ const webSocketService = (server) => {
             if (userId) {
               const room = data.data.room;
               
-              console.log('🏠 User joining room:', { userId, room });
-              
               // Add room to user's rooms
               if (!userRooms.has(userId)) {
                 userRooms.set(userId, new Set());
@@ -69,8 +67,6 @@ const webSocketService = (server) => {
                 roomUsers.set(room, new Set());
               }
               roomUsers.get(room).add(userId);
-              
-              console.log('✅ User joined room successfully:', { userId, room });
               
               // Send confirmation
               ws.send(JSON.stringify({
@@ -217,33 +213,30 @@ const webSocketService = (server) => {
 
   // Function to broadcast to specific room
   const broadcastToRoom = (roomName, messageData) => {
-    console.log('📡 Broadcasting to room:', roomName, messageData);
-    
     let sentCount = 0;
     
     // Ensure room exists in roomUsers map
     if (!roomUsers.has(roomName)) {
-      console.log('⚠️ Room not found in roomUsers, creating:', roomName);
       roomUsers.set(roomName, new Set());
     }
     
     if (roomUsers.has(roomName)) {
       const roomUserIds = roomUsers.get(roomName);
-      console.log('👥 Users in room:', roomName, Array.from(roomUserIds));
       
       roomUserIds.forEach(userId => {
         const userWs = connectedUsers.get(userId);
+        
         if (userWs && userWs.readyState === WebSocket.OPEN) {
-          console.log('📤 Sending message to user:', userId);
-          userWs.send(JSON.stringify(messageData));
-          sentCount++;
-        } else {
-          console.log('❌ User not connected or WebSocket not open:', userId);
+          try {
+            userWs.send(JSON.stringify(messageData));
+            sentCount++;
+          } catch (error) {
+            console.error('❌ Error sending message to user:', userId, error);
+          }
         }
       });
     }
     
-    console.log('✅ Broadcast completed, sent to', sentCount, 'users');
     return sentCount;
   };
 

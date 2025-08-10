@@ -384,7 +384,20 @@ router.post('/:groupId/message', async (req, res) => {
       is_group_message: true
     });
 
-    // Get group members for notification
+    // Get group info and members for notification
+    const groupInfo = await ChatGroup.findOne({
+      where: { group_id: groupId }
+    });
+    
+    // Check if group exists
+    if (!groupInfo) {
+      console.error('❌ Group not found for group_id:', groupId);
+      return res.status(404).json({
+        success: false,
+        message: 'Group tidak ditemukan'
+      });
+    }
+    
     const groupMembers = await ChatGroupMember.findAll({
       where: {
         group_id: groupId,
@@ -393,18 +406,85 @@ router.post('/:groupId/message', async (req, res) => {
       }
     });
 
-    // Send notifications to all members
-    groupMembers.forEach(member => {
-      sendChatNotification(member.user_id, {
-        title: 'Pesan Group Baru',
-        body: message.substring(0, 100),
-        data: {
-          type: 'group_message',
-          group_id: groupId,
-          sender_id: sender_id
-        }
+    // Get sender info for notification
+    const sender = await User.findByPk(sender_id);
+    
+    // Check if sender exists
+    if (!sender) {
+      console.error('❌ Sender not found for id:', sender_id);
+      return res.status(404).json({
+        success: false,
+        message: 'Pengirim tidak ditemukan'
       });
-    });
+    }
+    
+    // Get wsService instance from app
+    const wsService = req.app.get('wsService');
+    
+    // Send WebSocket message for real-time updates to all group members
+    if (wsService) {
+      try {
+        // Broadcast to all group members (including sender for consistency)
+        const roomName = `group_${groupId}`;
+        
+        // Broadcast the message to the group room
+        const broadcastResult = wsService.broadcastToRoom(roomName, {
+          type: 'new_group_message',
+          data: {
+            id: newMessage.id, // TAMBAH: Include message ID from database
+            groupId: groupId,
+            groupName: groupInfo.group_name,
+            message: message,
+            sender_id: sender_id,
+            sender_name: sender.nama,
+            message_type: message_type,
+            timestamp: newMessage.created_at // TAMBAH: Use actual timestamp from database
+          }
+        });
+        
+        console.log('📡 Backend: Broadcast result - sent to', broadcastResult, 'users');
+      } catch (wsError) {
+        console.error('WebSocket broadcast error for group:', wsError);
+      }
+    }
+    
+    // Send notifications to all members
+    for (const member of groupMembers) {
+      try {
+        // Send push notification
+        await sendChatNotification(
+          sender_id, 
+          member.user_id, 
+          message, 
+          `${sender.nama} (${groupInfo.group_name})`, 
+          wsService
+        );
+        
+        // HAPUS: Jangan kirim WebSocket notification lagi karena sudah dihandle oleh broadcastToRoom
+        // Ini yang menyebabkan duplikasi pesan!
+        // if (wsService) {
+        //   try {
+        //     const notificationData = {
+        //       type: 'group_message',
+        //       group_id: groupId,
+        //       group_name: groupInfo.group_name,
+        //       sender_id: sender_id,
+        //       sender_name: sender.nama,
+        //       message: message,
+        //       title: `Pesan baru di ${groupInfo.group_name}`,
+        //       body: message.length > 50 ? message.substring(0, 50) + '...' : message,
+        //       timestamp: new Date()
+        //     };
+        //     
+        //     wsService.sendNotificationToUser(member.user_id, notificationData);
+        //   } catch (wsError) {
+        //     console.error('WebSocket notification error for group member:', wsError);
+        //   }
+        // }
+      } catch (notificationError) {
+        console.error(`Error sending notification to member ${member.user_id}:`, notificationError);
+      }
+    }
 
     res.json({
       success: true,

@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n');
-  
+
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -119,19 +119,27 @@ class KeuanganPoskas {
     const connection = await this.getConnection();
     try {
       const { id_user, tanggal_poskas, isi_poskas, images } = data;
-      
+
+      console.log('📝 Creating poskas with data:', { id_user, tanggal_poskas, isi_poskas: isi_poskas ? 'has content' : 'no content', images: images ? 'has images' : 'no images' });
+
+      // Get next available record ID
+      const nextRecordId = await this.getNextRecordId();
+
       const [result] = await connection.execute(
-        `INSERT INTO ${this.tableName} (id_user, tanggal_poskas, isi_poskas, images) 
-         VALUES (?, ?, ?, ?)`,
-        [id_user, tanggal_poskas, isi_poskas, images ? JSON.stringify(images) : null]
+        `INSERT INTO ${this.tableName} (id, id_user, tanggal_poskas, isi_poskas, images, created_at, updated_at) 
+         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+        [nextRecordId, id_user, tanggal_poskas, isi_poskas, images ? JSON.stringify(images) : null]
       );
-      
-      return {
-        id: result.insertId,
-        ...data,
-        created_at: new Date(),
-        updated_at: new Date()
-      };
+
+      console.log('✅ Insert result:', result);
+
+      // Get the created record
+      const createdRecord = await this.getById(nextRecordId);
+
+      return createdRecord;
+    } catch (error) {
+      console.error('❌ Error in create method:', error);
+      throw error;
     } finally {
       await connection.end();
     }
@@ -142,18 +150,18 @@ class KeuanganPoskas {
     const connection = await this.getConnection();
     try {
       const { tanggal_poskas, isi_poskas, images } = data;
-      
+
       const [result] = await connection.execute(
         `UPDATE ${this.tableName} 
          SET tanggal_poskas = ?, isi_poskas = ?, images = ?, updated_at = CURRENT_TIMESTAMP 
          WHERE id = ? AND status_deleted = 0`,
         [tanggal_poskas, isi_poskas, images ? JSON.stringify(images) : null, id]
       );
-      
+
       if (result.affectedRows === 0) {
         throw new Error('Keuangan poskas not found or already deleted');
       }
-      
+
       return await this.getById(id);
     } finally {
       await connection.end();
@@ -170,11 +178,11 @@ class KeuanganPoskas {
          WHERE id = ? AND status_deleted = 0`,
         [id]
       );
-      
+
       if (result.affectedRows === 0) {
         throw new Error('Keuangan poskas not found or already deleted');
       }
-      
+
       return { success: true, message: 'Keuangan poskas deleted successfully' };
     } finally {
       await connection.end();
@@ -189,11 +197,11 @@ class KeuanganPoskas {
         `DELETE FROM ${this.tableName} WHERE id = ?`,
         [id]
       );
-      
+
       if (result.affectedRows === 0) {
         throw new Error('Keuangan poskas not found');
       }
-      
+
       return { success: true, message: 'Keuangan poskas permanently deleted' };
     } finally {
       await connection.end();
@@ -213,7 +221,7 @@ class KeuanganPoskas {
          FROM ${this.tableName} 
          WHERE status_deleted = 0`
       );
-      
+
       return rows[0];
     } finally {
       await connection.end();
@@ -254,6 +262,135 @@ class KeuanganPoskas {
         [`%${searchTerm}%`, `%${searchTerm}%`]
       );
       return rows;
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Check and fix auto increment
+  async checkAndFixAutoIncrement() {
+    const connection = await this.getConnection();
+    try {
+      // First, check if there's a record with ID 0 and remove it
+      const [checkZero] = await connection.execute(
+        `SELECT id FROM ${this.tableName} WHERE id = 0`
+      );
+
+      if (checkZero.length > 0) {
+        console.log('🔧 Found record with ID 0, removing it...');
+        await connection.execute(
+          `DELETE FROM ${this.tableName} WHERE id = 0`
+        );
+        console.log('✅ Removed record with ID 0');
+      }
+
+      // Check table structure
+      const [tableInfo] = await connection.execute(
+        `DESCRIBE ${this.tableName}`
+      );
+
+      const idColumn = tableInfo.find(col => col.Field === 'id');
+      console.log('🔍 ID column info:', idColumn);
+
+      // Get the current auto increment value
+      const [rows] = await connection.execute(
+        `SELECT AUTO_INCREMENT FROM information_schema.TABLES 
+         WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+        [config.database, this.tableName]
+      );
+
+      console.log('🔍 Current AUTO_INCREMENT:', rows[0]?.AUTO_INCREMENT);
+
+      // Get the maximum ID
+      const [maxRows] = await connection.execute(
+        `SELECT MAX(id) as max_id FROM ${this.tableName}`
+      );
+
+      const maxId = maxRows[0]?.max_id || 0;
+      console.log('🔍 Max ID in table:', maxId);
+
+      // If auto increment is less than max ID, fix it
+      if (rows[0]?.AUTO_INCREMENT <= maxId) {
+        console.log('🔧 Fixing AUTO_INCREMENT...');
+        await connection.execute(
+          `ALTER TABLE ${this.tableName} AUTO_INCREMENT = ${maxId + 1}`
+        );
+        console.log('✅ AUTO_INCREMENT fixed to:', maxId + 1);
+      }
+
+      // If no records exist, set auto increment to 1
+      if (maxId === 0 && (!rows[0]?.AUTO_INCREMENT || rows[0]?.AUTO_INCREMENT === 0)) {
+        console.log('🔧 Setting AUTO_INCREMENT to 1 for empty table...');
+        await connection.execute(
+          `ALTER TABLE ${this.tableName} AUTO_INCREMENT = 1`
+        );
+        console.log('✅ AUTO_INCREMENT set to 1');
+      }
+    } catch (error) {
+      console.error('❌ Error checking/fixing auto increment:', error);
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Get next available image ID
+  async getNextImageId() {
+    const connection = await this.getConnection();
+    try {
+      // Get all images from all records
+      const [rows] = await connection.execute(
+        `SELECT images FROM ${this.tableName} WHERE status_deleted = 0 AND images IS NOT NULL`
+      );
+
+      let maxImageId = 0;
+
+      // Parse all images and find the maximum ID
+      rows.forEach(row => {
+        if (row.images) {
+          try {
+            const images = JSON.parse(row.images);
+            if (Array.isArray(images)) {
+              images.forEach(img => {
+                if (img.id && img.id > maxImageId) {
+                  maxImageId = img.id;
+                }
+              });
+            }
+          } catch (error) {
+            console.error('Error parsing images JSON:', error);
+          }
+        }
+      });
+
+      console.log('🔍 Current max image ID:', maxImageId);
+      return maxImageId;
+    } catch (error) {
+      console.error('❌ Error getting next image ID:', error);
+      return 0;
+    } finally {
+      await connection.end();
+    }
+  }
+
+  // Get next available record ID
+  async getNextRecordId() {
+    const connection = await this.getConnection();
+    try {
+      // Get the maximum ID from the table
+      const [rows] = await connection.execute(
+        `SELECT MAX(id) as max_id FROM ${this.tableName}`
+      );
+
+      const maxId = rows[0]?.max_id || 0;
+      const nextId = maxId + 1;
+
+      console.log('🔍 Current max record ID:', maxId);
+      console.log('🔍 Next available record ID:', nextId);
+
+      return nextId;
+    } catch (error) {
+      console.error('❌ Error getting next record ID:', error);
+      return 1;
     } finally {
       await connection.end();
     }

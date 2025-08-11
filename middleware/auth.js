@@ -1,5 +1,39 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const mysql = require('mysql2/promise');
+const path = require('path');
+const fs = require('fs');
+
+// Baca file .env secara manual
+const envPath = path.join(__dirname, '../.env');
+let envConfig = {};
+
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const cleanContent = envContent
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  cleanContent.split('\n').forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, value] = trimmedLine.split('=');
+      if (key && value !== undefined) {
+        const cleanKey = key.trim();
+        const cleanValue = value.trim();
+        envConfig[cleanKey] = cleanValue;
+      }
+    }
+  });
+}
+
+const config = {
+  host: envConfig.DB_HOST || 'localhost',
+  port: envConfig.DB_PORT || 3306,
+  user: envConfig.DB_USER || 'root',
+  password: envConfig.DB_PASSWORD || '',
+  database: envConfig.DB_NAME || 'sistem_bosgil_group'
+};
 
 const authenticateToken = async (req, res, next) => {
   try {
@@ -14,19 +48,30 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bosgil_group');
-    
-    // Ambil user dari database
-    const user = await User.findByPk(decoded.userId);
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'User tidak ditemukan'
-      });
-    }
 
-    // Tambahkan user ke request object
-    req.user = user;
-    next();
+    // Ambil user dari database menggunakan raw query
+    const connection = await mysql.createConnection(config);
+    try {
+      const [rows] = await connection.execute(
+        'SELECT * FROM users WHERE id = ? AND status_deleted = 0',
+        [decoded.userId]
+      );
+
+      if (rows.length === 0) {
+        return res.status(401).json({
+          success: false,
+          message: 'User tidak ditemukan'
+        });
+      }
+
+      const user = rows[0];
+
+      // Tambahkan user ke request object
+      req.user = user;
+      next();
+    } finally {
+      await connection.end();
+    }
   } catch (error) {
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
@@ -39,7 +84,7 @@ const authenticateToken = async (req, res, next) => {
         message: 'Token telah kadaluarsa'
       });
     }
-    
+
     console.error('Auth middleware error:', error);
     return res.status(500).json({
       success: false,
@@ -52,10 +97,10 @@ const authenticateToken = async (req, res, next) => {
 const authenticateAdmin = async (req, res, next) => {
   try {
     await authenticateToken(req, res, () => {
-      if (req.user.role !== 'admin') {
+      if (req.user.role !== 'admin' && req.user.role !== 'owner') {
         return res.status(403).json({
           success: false,
-          message: 'Akses ditolak. Hanya admin yang diizinkan.'
+          message: 'Akses ditolak. Hanya admin/owner yang diizinkan.'
         });
       }
       next();

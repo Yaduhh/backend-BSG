@@ -17,13 +17,13 @@ const UserDevice = sequelize.define('UserDevice', {
     }
   },
   device_id: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(191), // Reduced from 255 to 191 to avoid key length issues
     allowNull: false,
     comment: 'Unique device identifier (e.g., Device.osInternalBuildId)'
   },
   expo_token: {
     type: DataTypes.STRING(255),
-    allowNull: false,
+    allowNull: true, // Changed to true to allow null values
     comment: 'Expo push notification token'
   },
   device_name: {
@@ -57,13 +57,16 @@ const UserDevice = sequelize.define('UserDevice', {
   indexes: [
     {
       unique: true,
-      fields: ['user_id', 'device_id']
+      fields: ['user_id', 'device_id'],
+      name: 'unique_user_device'
     },
     {
-      fields: ['expo_token']
+      fields: ['expo_token'],
+      name: 'idx_expo_token'
     },
     {
-      fields: ['is_active']
+      fields: ['is_active'],
+      name: 'idx_is_active'
     }
   ]
 });

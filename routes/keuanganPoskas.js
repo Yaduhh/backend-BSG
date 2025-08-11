@@ -1,27 +1,73 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const KeuanganPoskas = require('../models/KeuanganPoskas');
 const { authenticateToken } = require('../middleware/auth');
+
+// Configure storage for POSKAS images
+const poskasStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const poskasDir = path.join(uploadsDir, 'poskas');
+
+    // Create poskas directory if it doesn't exist
+    if (!fs.existsSync(poskasDir)) {
+      fs.mkdirSync(poskasDir, { recursive: true });
+    }
+
+    cb(null, poskasDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'poskas-' + uniqueSuffix + ext);
+  }
+});
+
+// Configure multer for POSKAS uploads
+const poskasUpload = multer({
+  storage: poskasStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow only images for POSKAS
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for POSKAS'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for POSKAS images
+    files: 5 // Maximum 5 images per POSKAS
+  }
+});
 
 // Get all keuangan poskas (admin only)
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    console.log('🔍 GET /keuangan-poskas - User:', req.user.id, 'Role:', req.user.role)
+
     // Check if user is admin
-    if (req.user.role !== 'admin') {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
+      console.log('❌ Access denied for user:', req.user.id)
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.'
+        message: 'Access denied. Admin/Owner only.'
       });
     }
 
     const keuanganPoskas = await KeuanganPoskas.getAll();
-    
+    console.log('📊 Found', keuanganPoskas.length, 'poskas records')
+
     res.json({
       success: true,
-      data: keuanganPoskas
+      data: keuanganPoskas,
+      count: keuanganPoskas.length
     });
   } catch (error) {
-    console.error('Error getting keuangan poskas:', error);
+    console.error('❌ Error getting keuangan poskas:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -33,9 +79,11 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/user/:userId', authenticateToken, async (req, res) => {
   try {
     const { userId } = req.params;
-    
+    console.log('🔍 GET /keuangan-poskas/user/:userId - Requested user:', userId, 'Current user:', req.user.id, 'Role:', req.user.role)
+
     // Check if user is admin or accessing their own data
-    if (req.user.role !== 'admin' && req.user.id !== parseInt(userId)) {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.id !== parseInt(userId)) {
+      console.log('❌ Access denied for user:', req.user.id, 'trying to access user:', userId)
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -43,13 +91,15 @@ router.get('/user/:userId', authenticateToken, async (req, res) => {
     }
 
     const keuanganPoskas = await KeuanganPoskas.getByUserId(userId);
-    
+    console.log('📊 Found', keuanganPoskas.length, 'poskas records for user:', userId)
+
     res.json({
       success: true,
-      data: keuanganPoskas
+      data: keuanganPoskas,
+      count: keuanganPoskas.length
     });
   } catch (error) {
-    console.error('Error getting keuangan poskas by user ID:', error);
+    console.error('❌ Error getting keuangan poskas by user ID:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -61,17 +111,17 @@ router.get('/user/:userId', authenticateToken, async (req, res) => {
 router.get('/date-range/:startDate/:endDate', authenticateToken, async (req, res) => {
   try {
     const { startDate, endDate } = req.params;
-    
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+
+    // Check if user is admin or owner
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.'
+        message: 'Access denied. Admin/Owner only.'
       });
     }
 
     const keuanganPoskas = await KeuanganPoskas.getByDateRange(startDate, endDate);
-    
+
     res.json({
       success: true,
       data: keuanganPoskas
@@ -89,17 +139,17 @@ router.get('/date-range/:startDate/:endDate', authenticateToken, async (req, res
 router.get('/month/:year/:month', authenticateToken, async (req, res) => {
   try {
     const { year, month } = req.params;
-    
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+
+    // Check if user is admin or owner
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.'
+        message: 'Access denied. Admin/Owner only.'
       });
     }
 
     const keuanganPoskas = await KeuanganPoskas.getByMonth(year, month);
-    
+
     res.json({
       success: true,
       data: keuanganPoskas
@@ -117,17 +167,17 @@ router.get('/month/:year/:month', authenticateToken, async (req, res) => {
 router.get('/search/:searchTerm', authenticateToken, async (req, res) => {
   try {
     const { searchTerm } = req.params;
-    
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+
+    // Check if user is admin or owner
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.'
+        message: 'Access denied. Admin/Owner only.'
       });
     }
 
     const keuanganPoskas = await KeuanganPoskas.search(searchTerm);
-    
+
     res.json({
       success: true,
       data: keuanganPoskas
@@ -144,16 +194,16 @@ router.get('/search/:searchTerm', authenticateToken, async (req, res) => {
 // Get summary/statistics
 router.get('/summary/stats', authenticateToken, async (req, res) => {
   try {
-    // Check if user is admin
-    if (req.user.role !== 'admin') {
+    // Check if user is admin or owner
+    if (req.user.role !== 'admin' && req.user.role !== 'owner') {
       return res.status(403).json({
         success: false,
-        message: 'Access denied. Admin only.'
+        message: 'Access denied. Admin/Owner only.'
       });
     }
 
     const summary = await KeuanganPoskas.getSummary();
-    
+
     res.json({
       success: true,
       data: summary
@@ -171,9 +221,12 @@ router.get('/summary/stats', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🔍 GET /keuangan-poskas/:id - ID:', id, 'User:', req.user.id, 'Role:', req.user.role)
+
     const keuanganPoskas = await KeuanganPoskas.getById(id);
-    
+
     if (!keuanganPoskas) {
+      console.log('❌ Poskas not found with ID:', id)
       return res.status(404).json({
         success: false,
         message: 'Keuangan poskas not found'
@@ -181,19 +234,21 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user is admin or the owner of the data
-    if (req.user.role !== 'admin' && req.user.id !== keuanganPoskas.id_user) {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.id !== keuanganPoskas.id_user) {
+      console.log('❌ Access denied for user:', req.user.id, 'trying to access poskas:', id, 'owned by:', keuanganPoskas.id_user)
       return res.status(403).json({
         success: false,
         message: 'Access denied'
       });
     }
-    
+
+    console.log('✅ Poskas found:', keuanganPoskas.id)
     res.json({
       success: true,
       data: keuanganPoskas
     });
   } catch (error) {
-    console.error('Error getting keuangan poskas by ID:', error);
+    console.error('❌ Error getting keuangan poskas by ID:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -202,34 +257,68 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new keuangan poskas
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, poskasUpload.array('images', 5), async (req, res) => {
   try {
-    const { tanggal_poskas, isi_poskas, images } = req.body;
-    
+    console.log('📝 POST /keuangan-poskas - User:', req.user.id, 'Role:', req.user.role)
+    console.log('📝 Request body:', req.body)
+    console.log('📝 Files:', req.files ? req.files.length : 0)
+
+    const { tanggal_poskas, isi_poskas } = req.body;
+
+    // Process uploaded images
+    let imagesData = null;
+    if (req.files && req.files.length > 0) {
+      // Get next available image ID
+      const nextImageId = await KeuanganPoskas.getNextImageId();
+      console.log('🔍 Next available image ID:', nextImageId);
+
+      imagesData = req.files.map((file, index) => {
+        const imageId = nextImageId + index + 1; // Start from next available ID
+        const fileExt = path.extname(file.originalname).substring(1);
+
+        return {
+          uri: `file://${file.path}`, // Local file path with file:// prefix
+          id: imageId, // Continue from existing image IDs
+          name: `poskas_${imageId}.${fileExt}`, // poskas_imageId.ext format
+          url: `/uploads/poskas/${file.filename}`, // URL for frontend access
+          serverPath: `poskas/${file.filename}` // Server path for storage reference
+        };
+      });
+      console.log('📝 Processed images:', imagesData.length)
+      console.log('📝 Images data format:', JSON.stringify(imagesData, null, 2))
+    }
+
     // Validate required fields
     if (!tanggal_poskas || !isi_poskas) {
+      console.log('❌ Missing required fields')
       return res.status(400).json({
         success: false,
         message: 'Tanggal poskas and isi poskas are required'
       });
     }
 
+    // Check and fix auto increment before creating
+    await KeuanganPoskas.checkAndFixAutoIncrement();
+
     const data = {
       id_user: req.user.id,
       tanggal_poskas,
       isi_poskas,
-      images: images || null
+      images: imagesData ? JSON.stringify(imagesData) : null
     };
 
+    console.log('📝 Creating poskas with data:', { ...data, images: imagesData ? 'has images' : 'no images' })
+    console.log('📝 Final images JSON:', imagesData ? JSON.stringify(imagesData) : 'null')
     const newKeuanganPoskas = await KeuanganPoskas.create(data);
-    
+    console.log('✅ Poskas created successfully:', newKeuanganPoskas.id)
+
     res.status(201).json({
       success: true,
       message: 'Keuangan poskas created successfully',
       data: newKeuanganPoskas
     });
   } catch (error) {
-    console.error('Error creating keuangan poskas:', error);
+    console.error('❌ Error creating keuangan poskas:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
@@ -238,11 +327,15 @@ router.post('/', authenticateToken, async (req, res) => {
 });
 
 // Update keuangan poskas
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, poskasUpload.array('images', 5), async (req, res) => {
   try {
     const { id } = req.params;
-    const { tanggal_poskas, isi_poskas, images } = req.body;
-    
+    const { tanggal_poskas, isi_poskas } = req.body;
+
+    console.log('📝 PUT /keuangan-poskas/:id - ID:', id, 'User:', req.user.id, 'Role:', req.user.role)
+    console.log('📝 Request body:', req.body)
+    console.log('📝 Files:', req.files ? req.files.length : 0)
+
     // Validate required fields
     if (!tanggal_poskas || !isi_poskas) {
       return res.status(400).json({
@@ -261,21 +354,42 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user is admin or the owner of the data
-    if (req.user.role !== 'admin' && req.user.id !== existingKeuanganPoskas.id_user) {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.id !== existingKeuanganPoskas.id_user) {
       return res.status(403).json({
         success: false,
         message: 'Access denied'
       });
     }
 
+    // Process uploaded images
+    let imagesData = null;
+    if (req.files && req.files.length > 0) {
+      // Get next available image ID
+      const nextImageId = await KeuanganPoskas.getNextImageId();
+      console.log('🔍 Next available image ID (update):', nextImageId);
+
+      imagesData = req.files.map((file, index) => {
+        const imageId = nextImageId + index + 1; // Start from next available ID
+        const fileExt = path.extname(file.originalname).substring(1);
+
+        return {
+          uri: `file://${file.path}`, // Local file path with file:// prefix
+          id: imageId, // Continue from existing image IDs
+          name: `poskas_${imageId}.${fileExt}`, // poskas_imageId.ext format
+          url: `/uploads/poskas/${file.filename}`, // URL for frontend access
+          serverPath: `poskas/${file.filename}` // Server path for storage reference
+        };
+      });
+    }
+
     const updatedData = {
       tanggal_poskas,
       isi_poskas,
-      images: images || null
+      images: imagesData ? JSON.stringify(imagesData) : null
     };
 
     const updatedKeuanganPoskas = await KeuanganPoskas.update(id, updatedData);
-    
+
     res.json({
       success: true,
       message: 'Keuangan poskas updated successfully',
@@ -294,10 +408,12 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('🗑️ DELETE /keuangan-poskas/:id - ID:', id, 'User:', req.user.id, 'Role:', req.user.role)
 
     // Check if keuangan poskas exists and user has permission
     const existingKeuanganPoskas = await KeuanganPoskas.getById(id);
     if (!existingKeuanganPoskas) {
+      console.log('❌ Poskas not found with ID:', id)
       return res.status(404).json({
         success: false,
         message: 'Keuangan poskas not found'
@@ -305,7 +421,8 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     // Check if user is admin or the owner of the data
-    if (req.user.role !== 'admin' && req.user.id !== existingKeuanganPoskas.id_user) {
+    if (req.user.role !== 'admin' && req.user.role !== 'owner' && req.user.id !== existingKeuanganPoskas.id_user) {
+      console.log('❌ Access denied for user:', req.user.id, 'trying to delete poskas:', id, 'owned by:', existingKeuanganPoskas.id_user)
       return res.status(403).json({
         success: false,
         message: 'Access denied'
@@ -313,13 +430,14 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 
     await KeuanganPoskas.delete(id);
-    
+    console.log('✅ Poskas deleted successfully:', id)
+
     res.json({
       success: true,
       message: 'Keuangan poskas deleted successfully'
     });
   } catch (error) {
-    console.error('Error deleting keuangan poskas:', error);
+    console.error('❌ Error deleting keuangan poskas:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

@@ -257,35 +257,36 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new keuangan poskas
-router.post('/', authenticateToken, poskasUpload.array('images', 5), async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     console.log('📝 POST /keuangan-poskas - User:', req.user.id, 'Role:', req.user.role)
     console.log('📝 Request body:', req.body)
-    console.log('📝 Files:', req.files ? req.files.length : 0)
 
-    const { tanggal_poskas, isi_poskas } = req.body;
+    const { tanggal_poskas, isi_poskas, images } = req.body;
 
-    // Process uploaded images
+    // Process images from frontend (already uploaded)
     let imagesData = null;
-    if (req.files && req.files.length > 0) {
-      // Get next available image ID
-      const nextImageId = await KeuanganPoskas.getNextImageId();
-      console.log('🔍 Next available image ID:', nextImageId);
-
-      imagesData = req.files.map((file, index) => {
-        const imageId = nextImageId + index + 1; // Start from next available ID
-        const fileExt = path.extname(file.originalname).substring(1);
-
+    if (images && Array.isArray(images) && images.length > 0) {
+      console.log('📝 Processing images from frontend:', images.length);
+      
+      // Validate image data structure
+      imagesData = images.map((img, index) => {
+        if (!img.id || !img.url || !img.serverPath) {
+          console.error('❌ Invalid image data at index:', index, img);
+          throw new Error(`Invalid image data at index ${index}`);
+        }
+        
         return {
-          uri: `file://${file.path}`, // Local file path with file:// prefix
-          id: imageId, // Continue from existing image IDs
-          name: `poskas_${imageId}.${fileExt}`, // poskas_imageId.ext format
-          url: `/uploads/poskas/${file.filename}`, // URL for frontend access
-          serverPath: `poskas/${file.filename}` // Server path for storage reference
+          uri: img.uri || '', // Keep original URI for reference
+          id: img.id, // Use ID from frontend
+          name: img.name || `poskas_${img.id}.jpg`,
+          url: img.url, // Server URL from frontend
+          serverPath: img.serverPath // Server path from frontend
         };
       });
-      console.log('📝 Processed images:', imagesData.length)
-      console.log('📝 Images data format:', JSON.stringify(imagesData, null, 2))
+      
+      console.log('📝 Processed images from frontend:', imagesData.length);
+      console.log('📝 Images data format:', JSON.stringify(imagesData, null, 2));
     }
 
     // Validate required fields
@@ -327,14 +328,13 @@ router.post('/', authenticateToken, poskasUpload.array('images', 5), async (req,
 });
 
 // Update keuangan poskas
-router.put('/:id', authenticateToken, poskasUpload.array('images', 5), async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { tanggal_poskas, isi_poskas } = req.body;
+    const { tanggal_poskas, isi_poskas, images } = req.body;
 
     console.log('📝 PUT /keuangan-poskas/:id - ID:', id, 'User:', req.user.id, 'Role:', req.user.role)
     console.log('📝 Request body:', req.body)
-    console.log('📝 Files:', req.files ? req.files.length : 0)
 
     // Validate required fields
     if (!tanggal_poskas || !isi_poskas) {
@@ -361,23 +361,24 @@ router.put('/:id', authenticateToken, poskasUpload.array('images', 5), async (re
       });
     }
 
-    // Process uploaded images
+    // Process images from frontend (already uploaded)
     let imagesData = null;
-    if (req.files && req.files.length > 0) {
-      // Get next available image ID
-      const nextImageId = await KeuanganPoskas.getNextImageId();
-      console.log('🔍 Next available image ID (update):', nextImageId);
-
-      imagesData = req.files.map((file, index) => {
-        const imageId = nextImageId + index + 1; // Start from next available ID
-        const fileExt = path.extname(file.originalname).substring(1);
-
+    if (images && Array.isArray(images) && images.length > 0) {
+      console.log('📝 Processing images from frontend (update):', images.length);
+      
+      // Validate image data structure
+      imagesData = images.map((img, index) => {
+        if (!img.id || !img.url || !img.serverPath) {
+          console.error('❌ Invalid image data at index:', index, img);
+          throw new Error(`Invalid image data at index ${index}`);
+        }
+        
         return {
-          uri: `file://${file.path}`, // Local file path with file:// prefix
-          id: imageId, // Continue from existing image IDs
-          name: `poskas_${imageId}.${fileExt}`, // poskas_imageId.ext format
-          url: `/uploads/poskas/${file.filename}`, // URL for frontend access
-          serverPath: `poskas/${file.filename}` // Server path for storage reference
+          uri: img.uri || '', // Keep original URI for reference
+          id: img.id, // Use ID from frontend
+          name: img.name || `poskas_${img.id}.jpg`,
+          url: img.url, // Server URL from frontend
+          serverPath: img.serverPath // Server path from frontend
         };
       });
     }

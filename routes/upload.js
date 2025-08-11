@@ -109,7 +109,7 @@ router.post('/files', uploadMultiple, (req, res) => {
 });
 
 // Upload POSKAS images
-router.post('/poskas', authenticateToken, poskasUpload.array('files', 5), (req, res) => {
+router.post('/poskas', authenticateToken, poskasUpload.array('images', 5), (req, res) => {
   console.log('📁 POSKAS upload request received');
   console.log('📁 User:', req.user.id);
   console.log('📁 Files:', req.files ? req.files.length : 0);

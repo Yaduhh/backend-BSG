@@ -281,34 +281,6 @@ router.post('/', authenticateToken, async (req, res) => {
         .catch(error => {
           console.error('Error sending komplain notifications:', error);
         });
-
-      // Send new komplain notification to admin and related parties
-      sendKomplainNewNotification(complaintResponse, complaintResponse.Pelapor, wsService)
-        .then(success => {
-          if (success) {
-            console.log(`✅ New komplain notifications sent successfully for complaint: ${judul_komplain}`);
-          } else {
-            console.log(`❌ Failed to send new komplain notifications for complaint: ${judul_komplain}`);
-          }
-        })
-        .catch(error => {
-          console.error('Error sending new komplain notifications:', error);
-        });
-
-      // Send special notification from owner to admin if pelapor is owner
-      if (complaintResponse.Pelapor && complaintResponse.Pelapor.role === 'owner') {
-        sendKomplainOwnerToAdminNotification(complaintResponse, complaintResponse.Pelapor, wsService)
-          .then(success => {
-            if (success) {
-              console.log(`✅ Owner to admin komplain notification sent successfully for complaint: ${judul_komplain}`);
-            } else {
-              console.log(`❌ Failed to send owner to admin komplain notification for complaint: ${judul_komplain}`);
-            }
-          })
-          .catch(error => {
-            console.error('Error sending owner to admin komplain notification:', error);
-          });
-      }
     } catch (notificationError) {
       console.error('Error setting up komplain notifications:', notificationError);
     }

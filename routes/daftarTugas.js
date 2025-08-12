@@ -2,13 +2,14 @@ const express = require('express');
 const router = express.Router();
 const { DaftarTugas, User } = require('../models');
 const { Op } = require('sequelize');
-const { 
-  sendTaskNotification, 
+const {
+  sendTaskNotification,
   sendTaskStatusUpdateNotification,
   sendTaskCompletionNotification,
   sendTaskUpdateNotification,
+  sendTaskPriorityChangeNotification,
   sendTaskDeletionNotification,
-  sendTaskPriorityChangeNotification
+  sendTaskStatusChangeNotification
 } = require('../services/notificationService');
 
 // Get all tasks with pagination and filters
@@ -21,11 +22,11 @@ router.get('/', async (req, res) => {
 
     // Build where clause for filters
     const whereClause = {};
-    
+
     if (status && status !== 'all') {
       whereClause.status = status;
     }
-    
+
     if (priority && priority !== 'all') {
       whereClause.skala_prioritas = priority;
     }
@@ -53,7 +54,7 @@ router.get('/', async (req, res) => {
         { judul_tugas: { [Op.like]: searchTerm } },
         { keterangan_tugas: { [Op.like]: searchTerm } }
       ];
-      
+
       // Also search in related users
       includeClause = includeClause.map(include => ({
         ...include,
@@ -282,7 +283,7 @@ router.post('/', async (req, res) => {
     try {
       // Get wsService instance from app
       const wsService = req.app.get('wsService');
-      
+
       // Send notifications to penerima tugas and pihak terkait
       sendTaskNotification(taskDataResponse, pemberiUser, wsService)
         .then(success => {
@@ -317,7 +318,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const task = await DaftarTugas.findByPk(req.params.id);
-    
+
     if (!task) {
       return res.status(404).json({
         success: false,
@@ -413,7 +414,7 @@ router.put('/:id', async (req, res) => {
 
     // Get old status for comparison
     const oldStatus = task.status;
-    
+
     await task.update(updateData);
 
     // Fetch updated task with user data
@@ -453,10 +454,10 @@ router.put('/:id', async (req, res) => {
       try {
         // Get wsService instance from app
         const wsService = req.app.get('wsService');
-        
+
         // Get current user (admin who updated the task)
         const currentUser = req.user || { id: 1, nama: 'Admin' }; // Fallback if no user context
-        
+
         if (status === 'selesai') {
           // Send completion notification to pemberi tugas (owner)
           sendTaskCompletionNotification(taskDataResponse, currentUser, wsService)
@@ -484,6 +485,19 @@ router.put('/:id', async (req, res) => {
               console.error('Error sending task status update notification:', error);
             });
         }
+
+        // Send status change notification to penerima tugas and pihak terkait
+        sendTaskStatusChangeNotification(taskDataResponse, currentUser, oldStatus, status, wsService)
+          .then(success => {
+            if (success) {
+              console.log(`✅ Task status change notification sent to penerima and pihak terkait for task: ${taskDataResponse.judul_tugas}`);
+            } else {
+              console.log(`❌ Failed to send task status change notification to penerima and pihak terkait for task: ${taskDataResponse.judul_tugas}`);
+            }
+          })
+          .catch(error => {
+            console.error('Error sending task status change notification to penerima and pihak terkait:', error);
+          });
       } catch (notificationError) {
         console.error('Error setting up task status notifications:', notificationError);
       }
@@ -494,7 +508,7 @@ router.put('/:id', async (req, res) => {
       try {
         // Get wsService instance from app
         const wsService = req.app.get('wsService');
-        
+
         // Check if priority changed
         if (skala_prioritas && skala_prioritas !== task.skala_prioritas) {
           sendTaskPriorityChangeNotification(taskDataResponse, req.user, task.skala_prioritas, wsService)
@@ -548,7 +562,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get task details before deletion for notification
     const task = await DaftarTugas.findByPk(id);
     if (!task) {
@@ -560,7 +574,7 @@ router.delete('/:id', async (req, res) => {
       try {
         // Get wsService instance from app
         const wsService = req.app.get('wsService');
-        
+
         // Send deletion notification to penerima tugas (admin)
         sendTaskDeletionNotification(task, req.user, wsService)
           .then(success => {

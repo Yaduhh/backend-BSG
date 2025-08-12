@@ -4,6 +4,22 @@ const { UserDevice } = require('../models');
 // Create a new Expo SDK client
 const expo = new Expo();
 
+// Helper function to parse pihak terkait (handle both string JSON and array)
+const parsePihakTerkait = (pihakTerkait) => {
+  if (!pihakTerkait) return [];
+  
+  if (typeof pihakTerkait === 'string') {
+    try {
+      return JSON.parse(pihakTerkait);
+    } catch (parseError) {
+      console.error('Error parsing pihak_terkait JSON:', parseError);
+      return [];
+    }
+  }
+  
+  return Array.isArray(pihakTerkait) ? pihakTerkait : [];
+};
+
 // Send notification to a single device
 const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
   try {
@@ -186,48 +202,48 @@ const sendTaskNotification = async (taskData, pemberiTugas, wsService = null) =>
     }
 
     // Notification for pihak terkait (related parties)
-    if (taskData.pihak_terkait && Array.isArray(taskData.pihak_terkait)) {
-      for (const userId of taskData.pihak_terkait) {
-        // Skip if this user is the same as penerima tugas
-        if (userId === taskData.penerima_tugas) continue;
-        
-        const relatedUser = await User.findByPk(userId);
-        if (relatedUser) {
-          const title = `👥 Tugas Terkait: ${taskTitle}`;
-          const body = `Anda terkait dengan tugas dari ${pemberiTugas.nama}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
-          const data = {
-            type: 'task_related',
-            task_id: taskData.id,
-            task_title: taskTitle,
-            priority: priority,
-            target_date: targetDate.toISOString(),
-            pemberi_tugas_id: pemberiTugas.id,
-            pemberi_tugas_name: pemberiTugas.nama
-          };
+    const pihakTerkait = parsePihakTerkait(taskData.pihak_terkait);
+    
+    for (const userId of pihakTerkait) {
+      // Skip if this user is the same as penerima tugas
+      if (userId === taskData.penerima_tugas) continue;
+      
+      const relatedUser = await User.findByPk(userId);
+      if (relatedUser) {
+        const title = `👥 Tugas Terkait: ${taskTitle}`;
+        const body = `Anda terkait dengan tugas dari ${pemberiTugas.nama}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+        const data = {
+          type: 'task_related',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          priority: priority,
+          target_date: targetDate.toISOString(),
+          pemberi_tugas_id: pemberiTugas.id,
+          pemberi_tugas_name: pemberiTugas.nama
+        };
 
-          // Send push notification
-          await sendNotificationToUser(userId, title, body, data);
+        // Send push notification
+        await sendNotificationToUser(userId, title, body, data);
 
-          // Send WebSocket notification if user is online
-          if (wsService && wsService.sendNotificationToUser) {
-            try {
-              const notificationData = {
-                type: 'task_related',
-                task_id: taskData.id,
-                task_title: taskTitle,
-                priority: priority,
-                target_date: targetDate.toISOString(),
-                pemberi_tugas_id: pemberiTugas.id,
-                pemberi_tugas_name: pemberiTugas.nama,
-                title: title,
-                body: body,
-                timestamp: new Date()
-              };
-              
-              wsService.sendNotificationToUser(userId, notificationData);
-            } catch (wsError) {
-              console.error('WebSocket notification error for pihak terkait:', wsError);
-            }
+        // Send WebSocket notification if user is online
+        if (wsService && wsService.sendNotificationToUser) {
+          try {
+            const notificationData = {
+              type: 'task_related',
+              task_id: taskData.id,
+              task_title: taskTitle,
+              priority: priority,
+              target_date: targetDate.toISOString(),
+              pemberi_tugas_id: pemberiTugas.id,
+              pemberi_tugas_name: pemberiTugas.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(userId, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for pihak terkait:', wsError);
           }
         }
       }
@@ -321,50 +337,50 @@ const sendKomplainNotification = async (komplainData, pelapor, wsService = null)
     }
 
     // Notification for pihak terkait (related parties)
-    if (komplainData.pihak_terkait && Array.isArray(komplainData.pihak_terkait)) {
-      for (const userId of komplainData.pihak_terkait) {
-        // Skip if this user is the same as penerima komplain
-        if (userId === komplainData.penerima_komplain_id) continue;
-        
-        const relatedUser = await User.findByPk(userId);
-        if (relatedUser) {
-          const title = `👥 Komplain Terkait: ${komplainTitle}`;
-          const body = `Anda terkait dengan komplain dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
-          const data = {
-            type: 'komplain_related',
-            komplain_id: komplainData.id,
-            komplain_title: komplainTitle,
-            priority: priority,
-            category: category,
-            target_date: targetDate ? targetDate.toISOString() : null,
-            pelapor_id: pelapor.id,
-            pelapor_name: pelapor.nama
-          };
+    const pihakTerkait = parsePihakTerkait(komplainData.pihak_terkait);
+    
+    for (const userId of pihakTerkait) {
+      // Skip if this user is the same as penerima komplain
+      if (userId === komplainData.penerima_komplain_id) continue;
+      
+      const relatedUser = await User.findByPk(userId);
+      if (relatedUser) {
+        const title = `👥 Komplain Terkait: ${komplainTitle}`;
+        const body = `Anda terkait dengan komplain dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+        const data = {
+          type: 'komplain_related',
+          komplain_id: komplainData.id,
+          komplain_title: komplainTitle,
+          priority: priority,
+          category: category,
+          target_date: targetDate ? targetDate.toISOString() : null,
+          pelapor_id: pelapor.id,
+          pelapor_name: pelapor.nama
+        };
 
-          // Send push notification
-          await sendNotificationToUser(userId, title, body, data);
+        // Send push notification
+        await sendNotificationToUser(userId, title, body, data);
 
-          // Send WebSocket notification if user is online
-          if (wsService) {
-            try {
-              const notificationData = {
-                type: 'komplain_related',
-                komplain_id: komplainData.id,
-                komplain_title: komplainTitle,
-                priority: priority,
-                category: category,
-                target_date: targetDate ? targetDate.toISOString() : null,
-                pelapor_id: pelapor.id,
-                pelapor_name: pelapor.nama,
-                title: title,
-                body: body,
-                timestamp: new Date()
-              };
-              
-              wsService.sendNotificationToUser(userId, notificationData);
-            } catch (wsError) {
-              console.error('WebSocket notification error for pihak terkait:', wsError);
-            }
+        // Send WebSocket notification if user is online
+        if (wsService) {
+          try {
+            const notificationData = {
+              type: 'komplain_related',
+              komplain_id: komplainData.id,
+              komplain_title: komplainTitle,
+              priority: priority,
+              category: category,
+              target_date: targetDate ? targetDate.toISOString() : null,
+              pelapor_id: pelapor.id,
+              pelapor_name: pelapor.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(userId, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for pihak terkait:', wsError);
           }
         }
       }
@@ -651,50 +667,50 @@ const sendKomplainNewNotification = async (komplainData, pelapor, wsService = nu
     }
 
     // Notification for pihak terkait (related parties) - new komplain
-    if (komplainData.pihak_terkait && Array.isArray(komplainData.pihak_terkait)) {
-      for (const userId of komplainData.pihak_terkait) {
-        // Skip if this user is the same as penerima komplain
-        if (userId === komplainData.penerima_komplain_id) continue;
-        
-        const relatedUser = await User.findByPk(userId);
-        if (relatedUser) {
-          const title = `👥 Komplain Terkait Baru: ${komplainTitle}`;
-          const body = `Anda terkait dengan komplain baru dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
-          const data = {
-            type: 'komplain_new_related',
-            komplain_id: komplainData.id,
-            komplain_title: komplainTitle,
-            priority: priority,
-            category: category,
-            target_date: targetDate ? targetDate.toISOString() : null,
-            pelapor_id: pelapor.id,
-            pelapor_name: pelapor.nama
-          };
+    const pihakTerkait = parsePihakTerkait(komplainData.pihak_terkait);
+    
+    for (const userId of pihakTerkait) {
+      // Skip if this user is the same as penerima komplain
+      if (userId === komplainData.penerima_komplain_id) continue;
+      
+      const relatedUser = await User.findByPk(userId);
+      if (relatedUser) {
+        const title = `👥 Komplain Terkait Baru: ${komplainTitle}`;
+        const body = `Anda terkait dengan komplain baru dari ${pelapor.nama}. Kategori: ${categoryText}. Prioritas: ${priorityText}. Target: ${formattedDate}`;
+        const data = {
+          type: 'komplain_new_related',
+          komplain_id: komplainData.id,
+          komplain_title: komplainTitle,
+          priority: priority,
+          category: category,
+          target_date: targetDate ? targetDate.toISOString() : null,
+          pelapor_id: pelapor.id,
+          pelapor_name: pelapor.nama
+        };
 
-          // Send push notification
-          await sendNotificationToUser(userId, title, body, data);
+        // Send push notification
+        await sendNotificationToUser(userId, title, body, data);
 
-          // Send WebSocket notification if user is online
-          if (wsService) {
-            try {
-              const notificationData = {
-                type: 'komplain_new_related',
-                komplain_id: komplainData.id,
-                komplain_title: komplainTitle,
-                priority: priority,
-                category: category,
-                target_date: targetDate ? targetDate.toISOString() : null,
-                pelapor_id: pelapor.id,
-                pelapor_name: pelapor.nama,
-                title: title,
-                body: body,
-                timestamp: new Date()
-              };
-              
-              wsService.sendNotificationToUser(userId, notificationData);
-            } catch (wsError) {
-              console.error('WebSocket notification error for new komplain related:', wsError);
-            }
+        // Send WebSocket notification if user is online
+        if (wsService) {
+          try {
+            const notificationData = {
+              type: 'komplain_new_related',
+              komplain_id: komplainData.id,
+              komplain_title: komplainTitle,
+              priority: priority,
+              category: category,
+              target_date: targetDate ? targetDate.toISOString() : null,
+              pelapor_id: pelapor.id,
+              pelapor_name: pelapor.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(userId, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for new komplain related:', wsError);
           }
         }
       }
@@ -1350,6 +1366,154 @@ const sendTaskPriorityChangeNotification = async (taskData, ownerUser, oldPriori
   }
 };
 
+// Send task status change notification to penerima tugas and pihak terkait
+const sendTaskStatusChangeNotification = async (taskData, adminUser, oldStatus, newStatus, wsService = null) => {
+  try {
+    const { User } = require('../models');
+    
+    // Get task details
+    const taskTitle = taskData.judul_tugas;
+    const penerimaTugasId = taskData.penerima_tugas;
+    
+    // Format status text
+    const statusText = {
+      'belum': 'Belum Dimulai',
+      'proses': 'Sedang Diproses',
+      'revisi': 'Perlu Revisi',
+      'selesai': 'Selesai'
+    };
+    
+    const oldStatusText = statusText[oldStatus] || oldStatus;
+    const newStatusText = statusText[newStatus] || newStatus;
+
+    // Notification for penerima tugas (admin) - status changed
+    if (penerimaTugasId) {
+      const penerimaUser = await User.findByPk(penerimaTugasId);
+      if (penerimaUser) {
+        let title, body;
+        
+        if (newStatus === 'revisi') {
+          title = `🔄 Tugas Perlu Revisi: ${taskTitle}`;
+          body = `Tugas Anda telah diubah status menjadi "Perlu Revisi" oleh admin ${adminUser.nama}. Silakan periksa dan lakukan perbaikan.`;
+        } else if (newStatus === 'selesai') {
+          title = `✅ Tugas Selesai: ${taskTitle}`;
+          body = `Tugas Anda telah selesai ditandai oleh admin ${adminUser.nama}. Status berubah dari "${oldStatusText}" menjadi "${newStatusText}".`;
+        } else {
+          title = `📋 Status Tugas Diubah: ${taskTitle}`;
+          body = `Status tugas Anda telah diubah dari "${oldStatusText}" menjadi "${newStatusText}" oleh admin ${adminUser.nama}.`;
+        }
+
+        const data = {
+          type: 'task_status_change',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          old_status: oldStatus,
+          new_status: newStatus,
+          old_status_text: oldStatusText,
+          new_status_text: newStatusText,
+          admin_id: adminUser.id,
+          admin_name: adminUser.nama
+        };
+
+        // Send push notification
+        await sendNotificationToUser(penerimaTugasId, title, body, data);
+
+        // Send WebSocket notification if user is online
+        if (wsService && wsService.sendNotificationToUser) {
+          try {
+            const notificationData = {
+              type: 'task_status_change',
+              task_id: taskData.id,
+              task_title: taskTitle,
+              old_status: oldStatus,
+              new_status: newStatus,
+              old_status_text: oldStatusText,
+              new_status_text: newStatusText,
+              admin_id: adminUser.id,
+              admin_name: adminUser.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(penerimaTugasId, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for penerima tugas status change:', wsError);
+          }
+        }
+      }
+    }
+
+    // Notification for pihak terkait (related parties) - status changed
+    const pihakTerkait = parsePihakTerkait(taskData.pihak_terkait);
+    
+    for (const userId of pihakTerkait) {
+      // Skip if this user is the same as penerima tugas
+      if (userId === taskData.penerima_tugas) continue;
+      
+      const relatedUser = await User.findByPk(userId);
+      if (relatedUser) {
+        let title, body;
+        
+        if (newStatus === 'revisi') {
+          title = `🔄 Tugas Terkait Perlu Revisi: ${taskTitle}`;
+          body = `Tugas yang terkait dengan Anda telah diubah status menjadi "Perlu Revisi" oleh admin ${adminUser.nama}. Status berubah dari "${oldStatusText}" menjadi "${newStatusText}".`;
+        } else if (newStatus === 'selesai') {
+          title = `✅ Tugas Terkait Selesai: ${taskTitle}`;
+          body = `Tugas yang terkait dengan Anda telah selesai ditandai oleh admin ${adminUser.nama}. Status berubah dari "${oldStatusText}" menjadi "${newStatusText}".`;
+        } else {
+          title = `📋 Status Tugas Terkait Diubah: ${taskTitle}`;
+          body = `Status tugas yang terkait dengan Anda telah diubah dari "${oldStatusText}" menjadi "${newStatusText}" oleh admin ${adminUser.nama}.`;
+        }
+
+        const data = {
+          type: 'task_related_status_change',
+          task_id: taskData.id,
+          task_title: taskTitle,
+          old_status: oldStatus,
+          new_status: newStatus,
+          old_status_text: oldStatusText,
+          new_status_text: newStatusText,
+          admin_id: adminUser.id,
+          admin_name: adminUser.nama
+        };
+
+        // Send push notification
+        await sendNotificationToUser(userId, title, body, data);
+
+        // Send WebSocket notification if user is online
+        if (wsService && wsService.sendNotificationToUser) {
+          try {
+            const notificationData = {
+              type: 'task_related_status_change',
+              task_id: taskData.id,
+              task_title: taskTitle,
+              old_status: oldStatus,
+              new_status: newStatus,
+              old_status_text: oldStatusText,
+              new_status_text: newStatusText,
+              admin_id: adminUser.id,
+              admin_name: adminUser.nama,
+              title: title,
+              body: body,
+              timestamp: new Date()
+            };
+            
+            wsService.sendNotificationToUser(userId, notificationData);
+          } catch (wsError) {
+            console.error('WebSocket notification error for pihak terkait status change:', wsError);
+          }
+        }
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error sending task status change notification:', error);
+    return false;
+  }
+};
+
 // Check notification receipts
 const checkNotificationReceipts = async (tickets) => {
   try {
@@ -1387,6 +1551,124 @@ const checkNotificationReceipts = async (tickets) => {
   }
 };
 
+// Send pengumuman notification to all active users
+const sendPengumumanNotification = async (pengumumanData, ownerUser, action = 'created', wsService = null) => {
+  try {
+    const { UserDevice } = require('../models');
+    
+    // Get pengumuman details
+    const pengumumanTitle = pengumumanData.judul;
+    const pengumumanContent = pengumumanData.konten;
+    const priority = pengumumanData.prioritas;
+    const tanggalDari = new Date(pengumumanData.tanggal_berlaku_dari);
+    const tanggalSampai = pengumumanData.tanggal_berlaku_sampai ? new Date(pengumumanData.tanggal_berlaku_sampai) : null;
+    
+    // Format priority text
+    const priorityText = {
+      'tinggi': 'Tinggi',
+      'sedang': 'Sedang', 
+      'rendah': 'Rendah'
+    }[priority] || 'Sedang';
+    
+    // Format dates
+    const formattedDateDari = tanggalDari.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    const formattedDateSampai = tanggalSampai ? tanggalSampai.toLocaleDateString('id-ID', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }) : 'Selamanya';
+
+    // Get all active devices (all users)
+    const allActiveDevices = await UserDevice.findAll({
+      where: { 
+        is_active: true 
+      },
+      attributes: ['expo_token', 'device_name', 'user_id']
+    });
+
+    if (allActiveDevices.length === 0) {
+      return false;
+    }
+
+    // Determine notification content based on action
+    let title, body;
+    if (action === 'created') {
+      title = `📢 Pengumuman Baru: ${pengumumanTitle}`;
+      body = `Owner ${ownerUser.nama} telah membuat pengumuman baru. Prioritas: ${priorityText}. Berlaku: ${formattedDateDari} - ${formattedDateSampai}`;
+    } else if (action === 'updated') {
+      title = `📝 Pengumuman Diperbarui: ${pengumumanTitle}`;
+      body = `Owner ${ownerUser.nama} telah memperbarui pengumuman. Prioritas: ${priorityText}. Berlaku: ${formattedDateDari} - ${formattedDateSampai}`;
+    } else {
+      title = `📢 Pengumuman: ${pengumumanTitle}`;
+      body = `Owner ${ownerUser.nama} telah ${action} pengumuman. Prioritas: ${priorityText}. Berlaku: ${formattedDateDari} - ${formattedDateSampai}`;
+    }
+
+    const data = {
+      type: 'pengumuman',
+      action: action,
+      pengumuman_id: pengumumanData.id,
+      pengumuman_title: pengumumanTitle,
+      pengumuman_content: pengumumanContent,
+      priority: priority,
+      priority_text: priorityText,
+      tanggal_dari: tanggalDari.toISOString(),
+      tanggal_sampai: tanggalSampai ? tanggalSampai.toISOString() : null,
+      owner_id: ownerUser.id,
+      owner_name: ownerUser.nama,
+      owner_role: ownerUser.role
+    };
+
+    // Send push notification to all active devices
+    const results = await Promise.all(
+      allActiveDevices.map(device => 
+        sendNotificationToDevice(device.expo_token, title, body, data)
+      )
+    );
+
+    const successCount = results.filter(result => result === true).length;
+
+    // Send WebSocket notification to all online users
+    if (wsService && wsService.broadcastToAll) {
+      try {
+        const notificationData = {
+          type: 'pengumuman',
+          action: action,
+          pengumuman_id: pengumumanData.id,
+          pengumuman_title: pengumumanTitle,
+          pengumuman_content: pengumumanContent,
+          priority: priority,
+          priority_text: priorityText,
+          tanggal_dari: tanggalDari.toISOString(),
+          tanggal_sampai: tanggalSampai ? tanggalSampai.toISOString() : null,
+          owner_id: ownerUser.id,
+          owner_name: ownerUser.nama,
+          owner_role: ownerUser.role,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.broadcastToAll({
+          type: 'notification',
+          data: notificationData
+        });
+      } catch (wsError) {
+        console.error('WebSocket notification error for pengumuman:', wsError);
+      }
+    }
+
+    return successCount > 0;
+  } catch (error) {
+    console.error('Error sending pengumuman notification:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendNotificationToDevice,
   sendNotificationToUser,
@@ -1407,5 +1689,7 @@ module.exports = {
   sendTaskUpdateNotification,
   sendTaskDeletionNotification,
   sendTaskPriorityChangeNotification,
+  sendTaskStatusChangeNotification,
+  sendPengumumanNotification,
   checkNotificationReceipts
 }; 

@@ -1,43 +1,36 @@
 const axios = require('axios');
+const { API_CONFIG } = require('../config/constants');
+
+const baseURL = API_CONFIG.BASE_URL + API_CONFIG.ROUTES.API_PREFIX;
 
 const testAdminContacts = async () => {
   try {
-    console.log('🧪 Testing admin contacts endpoint...');
-    
-    // First, login as admin to get token
-    const loginResponse = await axios.post('http://localhost:3000/api/auth/login', {
-      username: 'admin',
+    console.log('🧪 Testing Admin Contacts...\n');
+
+    // Test 1: Login as admin
+    console.log('📊 Test 1: Login as admin...');
+    const loginResponse = await axios.post(`${baseURL}/auth/login`, {
+      email: 'admin@bosgil.com',
       password: 'admin123'
     });
-    
+
     if (loginResponse.data.success) {
       const token = loginResponse.data.data.token;
+      console.log('✅ Login successful, token received');
+
+      // Test 2: Get admin contacts
+      console.log('\n📊 Test 2: Getting admin contacts...');
       const adminId = loginResponse.data.data.user.id;
-      
-      console.log('✅ Login successful, admin ID:', adminId);
-      
-      // Test contacts endpoint
-      const contactsResponse = await axios.get(`http://localhost:3000/api/admin-chat/contacts/${adminId}`, {
+      const contactsResponse = await axios.get(`${baseURL}/admin-chat/contacts/${adminId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
       });
-      
-      console.log('📋 Contacts response:', contactsResponse.data);
-      
-      if (contactsResponse.data.success) {
-        console.log(`✅ Found ${contactsResponse.data.data.length} contacts`);
-        contactsResponse.data.data.forEach((contact, index) => {
-          console.log(`${index + 1}. ${contact.nama} (@${contact.username}) - ${contact.role}`);
-        });
-      } else {
-        console.log('❌ Failed to get contacts:', contactsResponse.data.message);
-      }
-      
+
+      console.log('✅ Admin contacts response:', JSON.stringify(contactsResponse.data, null, 2));
     } else {
-      console.log('❌ Login failed:', loginResponse.data.message);
+      console.error('❌ Login failed:', loginResponse.data);
     }
-    
   } catch (error) {
     console.error('❌ Test failed:', error.response?.data || error.message);
   }

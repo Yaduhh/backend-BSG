@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n');
-  
+
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -27,7 +27,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const config = {
-  host: envConfig.DB_HOST || 'localhost',
+  host: envConfig.DB_HOST || '192.168.38.223',
   port: envConfig.DB_PORT || 3306,
   user: envConfig.DB_USER || 'root',
   password: envConfig.DB_PASSWORD || '',
@@ -36,7 +36,7 @@ const config = {
 
 async function removeTanggalMasukTimColumn() {
   let connection;
-  
+
   try {
     connection = await mysql.createConnection(config);
     console.log('✅ Connected to MySQL database');

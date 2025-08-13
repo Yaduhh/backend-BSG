@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n');
-  
+
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -27,7 +27,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const config = {
-  host: envConfig.DB_HOST || 'localhost',
+  host: envConfig.DB_HOST || '192.168.38.223',
   port: envConfig.DB_PORT || 3306,
   user: envConfig.DB_USER || 'root',
   password: envConfig.DB_PASSWORD || '',
@@ -38,37 +38,37 @@ async function removeFormattedContentColumn() {
   const connection = await mysql.createConnection(config);
   try {
     console.log('🔍 Checking if formatted_content column exists...');
-    
+
     // Check if column exists
     const [columns] = await connection.execute(
       `SHOW COLUMNS FROM keuangan_poskas LIKE 'formatted_content'`
     );
-    
+
     if (columns.length === 0) {
       console.log('✅ Column formatted_content does not exist (already removed)');
       return;
     }
-    
+
     console.log('🗑️ Removing formatted_content column...');
-    
+
     // Remove formatted_content column
     await connection.execute(
       `ALTER TABLE keuangan_poskas DROP COLUMN formatted_content`
     );
-    
+
     console.log('✅ Column formatted_content removed successfully');
-    
+
     // Verify the column was removed
     const [newColumns] = await connection.execute(
       `SHOW COLUMNS FROM keuangan_poskas LIKE 'formatted_content'`
     );
-    
+
     if (newColumns.length === 0) {
       console.log('✅ Verification successful: formatted_content column removed');
     } else {
       console.log('❌ Verification failed: formatted_content column still exists');
     }
-    
+
   } catch (error) {
     console.error('❌ Error removing formatted_content column:', error.message);
     throw error;

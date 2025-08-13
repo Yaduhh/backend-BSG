@@ -12,7 +12,7 @@ if (fs.existsSync(envPath)) {
     .replace(/^\uFEFF/, '')
     .replace(/\r\n/g, '\n')
     .replace(/\r/g, '\n');
-  
+
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -27,7 +27,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const config = {
-  host: envConfig.DB_HOST || 'localhost',
+  host: envConfig.DB_HOST || '192.168.38.223',
   port: envConfig.DB_PORT || 3306,
   user: envConfig.DB_USER || 'root',
   password: envConfig.DB_PASSWORD || '',
@@ -36,15 +36,15 @@ const config = {
 
 async function addFormattedContentColumns() {
   const connection = await mysql.createConnection(config);
-  
+
   try {
     console.log('🔄 Menambahkan kolom formatted_content dan images ke tabel keuangan_poskas...');
-    
+
     // Check if columns already exist
     const [columns] = await connection.execute(
       `SHOW COLUMNS FROM keuangan_poskas LIKE 'formatted_content'`
     );
-    
+
     if (columns.length === 0) {
       // Add formatted_content column
       await connection.execute(
@@ -55,12 +55,12 @@ async function addFormattedContentColumns() {
     } else {
       console.log('ℹ️  Kolom formatted_content sudah ada');
     }
-    
+
     // Check if images column exists
     const [imageColumns] = await connection.execute(
       `SHOW COLUMNS FROM keuangan_poskas LIKE 'images'`
     );
-    
+
     if (imageColumns.length === 0) {
       // Add images column
       await connection.execute(
@@ -71,9 +71,9 @@ async function addFormattedContentColumns() {
     } else {
       console.log('ℹ️  Kolom images sudah ada');
     }
-    
+
     console.log('🎉 Semua kolom berhasil ditambahkan ke tabel keuangan_poskas!');
-    
+
   } catch (error) {
     console.error('❌ Error menambahkan kolom:', error);
     throw error;

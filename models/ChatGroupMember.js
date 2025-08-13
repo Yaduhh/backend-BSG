@@ -36,7 +36,7 @@ const ChatGroupMember = sequelize.define('ChatGroupMember', {
     defaultValue: true,
   },
 }, {
-  tableName: 'chat_group_members',
+  tableName: 'group_members',
   timestamps: false,
 });
 

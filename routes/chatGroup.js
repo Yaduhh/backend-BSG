@@ -36,7 +36,7 @@ router.post('/create', async (req, res) => {
     });
 
     // Add other members
-    const memberPromises = member_ids.map(user_id => 
+    const memberPromises = member_ids.map(user_id =>
       ChatGroupMember.create({
         group_id,
         user_id,
@@ -79,7 +79,7 @@ router.get('/user/:userId', async (req, res) => {
     const { userId } = req.params;
 
     const userGroups = await ChatGroupMember.findAll({
-      where: { 
+      where: {
         user_id: userId,
         is_active: true
       },
@@ -117,7 +117,7 @@ router.get('/user-groups/:userId', async (req, res) => {
 
     // Get user's groups with last message info
     const userGroups = await ChatGroupMember.findAll({
-      where: { 
+      where: {
         user_id: userId,
         is_active: true
       },
@@ -138,13 +138,13 @@ router.get('/user-groups/:userId', async (req, res) => {
     // Format data for frontend and get last message for each group
     const formattedGroups = await Promise.all(userGroups.map(async (member) => {
       const group = member.ChatGroup;
-      
+
       // Get last message for this group
       const lastMessage = await Message.findOne({
         where: {
           room_id: group.group_id,
           is_group_message: true,
-          status_deleted: 0
+          status_deleted: false
         },
         order: [['created_at', 'DESC']],
         include: [{
@@ -191,7 +191,7 @@ router.get('/:groupId', async (req, res) => {
     const { groupId } = req.params;
 
     const group = await ChatGroup.findOne({
-      where: { 
+      where: {
         group_id: groupId,
         is_active: true
       },
@@ -388,7 +388,7 @@ router.post('/:groupId/message', async (req, res) => {
     const groupInfo = await ChatGroup.findOne({
       where: { group_id: groupId }
     });
-    
+
     // Check if group exists
     if (!groupInfo) {
       console.error('❌ Group not found for group_id:', groupId);
@@ -397,7 +397,7 @@ router.post('/:groupId/message', async (req, res) => {
         message: 'Group tidak ditemukan'
       });
     }
-    
+
     const groupMembers = await ChatGroupMember.findAll({
       where: {
         group_id: groupId,
@@ -408,7 +408,7 @@ router.post('/:groupId/message', async (req, res) => {
 
     // Get sender info for notification
     const sender = await User.findByPk(sender_id);
-    
+
     // Check if sender exists
     if (!sender) {
       console.error('❌ Sender not found for id:', sender_id);
@@ -417,16 +417,16 @@ router.post('/:groupId/message', async (req, res) => {
         message: 'Pengirim tidak ditemukan'
       });
     }
-    
+
     // Get wsService instance from app
     const wsService = req.app.get('wsService');
-    
+
     // Send WebSocket message for real-time updates to all group members
     if (wsService) {
       try {
         // Broadcast to all group members (including sender for consistency)
         const roomName = `group_${groupId}`;
-        
+
         // Broadcast the message to the group room
         const broadcastResult = wsService.broadcastToRoom(roomName, {
           type: 'new_group_message',
@@ -441,25 +441,25 @@ router.post('/:groupId/message', async (req, res) => {
             timestamp: newMessage.created_at // TAMBAH: Use actual timestamp from database
           }
         });
-        
+
         console.log('📡 Backend: Broadcast result - sent to', broadcastResult, 'users');
       } catch (wsError) {
         console.error('WebSocket broadcast error for group:', wsError);
       }
     }
-    
+
     // Send notifications to all members
     for (const member of groupMembers) {
       try {
         // Send push notification
         await sendChatNotification(
-          sender_id, 
-          member.user_id, 
-          message, 
-          `${sender.nama} (${groupInfo.group_name})`, 
+          sender_id,
+          member.user_id,
+          message,
+          `${sender.nama} (${groupInfo.group_name})`,
           wsService
         );
-        
+
         // HAPUS: Jangan kirim WebSocket notification lagi karena sudah dihandle oleh broadcastToRoom
         // Ini yang menyebabkan duplikasi pesan!
         // if (wsService) {
@@ -512,7 +512,7 @@ router.get('/:groupId/messages', async (req, res) => {
       where: {
         room_id: groupId,
         is_group_message: true,
-        status_deleted: 0
+        status_deleted: false
       },
       include: [{
         model: User,

@@ -31,6 +31,7 @@ const timMerahBiruRoutes = require('./routes/timMerahBiru');
 const ownerTimMerahBiruRoutes = require('./routes/ownerTimMerahBiru');
 const ownerTrainingRoutes = require('./routes/ownerTraining');
 const adminTrainingRoutes = require('./routes/adminTraining');
+const adminDataAsetRoutes = require('./routes/adminDataAset');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -72,6 +73,7 @@ app.use('/api/admin', adminProfileRoutes);
 app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
 app.use('/api/admin/training', adminTrainingRoutes);
+app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/health', require('./routes/health'));
 

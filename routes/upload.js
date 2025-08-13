@@ -47,6 +47,27 @@ const omsetHarianStorage = multer.diskStorage({
   }
 });
 
+// Configure storage for LAPORAN KEUANGAN images
+const laporanKeuanganStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const laporanKeuanganDir = path.join(uploadsDir, 'laporan-keuangan');
+
+    // Create laporan-keuangan directory if it doesn't exist
+    if (!require('fs').existsSync(laporanKeuanganDir)) {
+      require('fs').mkdirSync(laporanKeuanganDir, { recursive: true });
+    }
+
+    cb(null, laporanKeuanganDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'laporan-keuangan-' + uniqueSuffix + ext);
+  }
+});
+
 // Configure multer for POSKAS uploads
 const poskasUpload = multer({
   storage: poskasStorage,
@@ -78,6 +99,23 @@ const omsetHarianUpload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit for OMSET HARIAN images
     files: 5 // Maximum 5 images per OMSET HARIAN
+  }
+});
+
+// Configure multer for LAPORAN KEUANGAN uploads
+const laporanKeuanganUpload = multer({
+  storage: laporanKeuanganStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow only images for LAPORAN KEUANGAN
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for LAPORAN KEUANGAN'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for LAPORAN KEUANGAN images
+    files: 5 // Maximum 5 images per LAPORAN KEUANGAN
   }
 });
 
@@ -260,6 +298,63 @@ router.post('/omset-harian', authenticateToken, omsetHarianUpload.array('images'
   }
 });
 
+// Upload LAPORAN KEUANGAN images
+router.post('/laporan-keuangan', authenticateToken, laporanKeuanganUpload.array('images', 5), (req, res) => {
+  console.log('📁 LAPORAN KEUANGAN upload request received');
+  console.log('📁 User:', req.user.id);
+  console.log('📁 Files:', req.files ? req.files.length : 0);
+
+  try {
+    if (!req.files || req.files.length === 0) {
+      console.log('❌ No LAPORAN KEUANGAN images uploaded');
+      return res.status(400).json({
+        success: false,
+        message: 'No images uploaded'
+      });
+    }
+
+    console.log('📁 Processing LAPORAN KEUANGAN images...');
+    const uploadedFiles = req.files.map((file, index) => {
+      console.log(`📁 Processing LAPORAN KEUANGAN image ${index + 1}:`, {
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: file.path
+      });
+
+      // Create relative path for database storage
+      const relativePath = path.relative(path.join(__dirname, '../uploads'), file.path);
+
+      const fileInfo = {
+        originalName: file.originalname,
+        filename: file.filename,
+        path: relativePath.replace(/\\/g, '/'), // Convert Windows path to URL format
+        mimetype: file.mimetype,
+        size: file.size,
+        url: `/uploads/${relativePath.replace(/\\/g, '/')}` // URL for accessing the file
+      };
+
+      console.log('📁 LAPORAN KEUANGAN image processed:', fileInfo);
+      return fileInfo;
+    });
+
+    console.log('✅ LAPORAN KEUANGAN upload successful, returning:', uploadedFiles.length, 'images');
+    res.json({
+      success: true,
+      message: 'LAPORAN KEUANGAN images uploaded successfully',
+      data: uploadedFiles
+    });
+  } catch (error) {
+    console.error('❌ Error uploading LAPORAN KEUANGAN images:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading LAPORAN KEUANGAN images'
+    });
+  }
+});
+
 // Serve uploaded files
 router.get('/uploads/*', (req, res) => {
   const filePath = path.join(__dirname, '../uploads', req.params[0]);
@@ -307,6 +402,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Only image files are allowed for OMSET HARIAN uploads.'
+    });
+  }
+
+  if (err.message === 'Only image files are allowed for LAPORAN KEUANGAN') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image files are allowed for LAPORAN KEUANGAN uploads.'
     });
   }
 

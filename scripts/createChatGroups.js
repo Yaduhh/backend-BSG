@@ -12,7 +12,7 @@ const createChatGroups = async () => {
             WHERE TABLE_SCHEMA = 'sistem_bosgil_group' 
             AND TABLE_NAME = 'chat_groups'
         `, { type: sequelize.QueryTypes.SELECT });
-        
+
         if (tableExists[0].count === 0) {
             console.log('   - Creating chat_groups table...');
             await sequelize.query(`
@@ -42,7 +42,7 @@ const createChatGroups = async () => {
             WHERE TABLE_SCHEMA = 'sistem_bosgil_group' 
             AND TABLE_NAME = 'group_members'
         `, { type: sequelize.QueryTypes.SELECT });
-        
+
         if (membersTableExists[0].count === 0) {
             console.log('   - Creating group_members table...');
             await sequelize.query(`
@@ -65,7 +65,7 @@ const createChatGroups = async () => {
 
         // Step 3: Create sample groups
         console.log('\n📝 Step 3: Creating sample groups...');
-        
+
         const sampleGroups = [
             {
                 group_id: 'group_1',
@@ -114,7 +114,7 @@ const createChatGroups = async () => {
 
         // Step 4: Add members to groups
         console.log('\n👥 Step 4: Adding members to groups...');
-        
+
         const groupMembers = [
             // Tim Bosgil Group - semua user
             { group_id: 'group_1', user_id: 1, role: 'admin' },
@@ -122,16 +122,16 @@ const createChatGroups = async () => {
             { group_id: 'group_1', user_id: 3, role: 'member' },
             { group_id: 'group_1', user_id: 4, role: 'member' },
             { group_id: 'group_1', user_id: 5, role: 'member' },
-            
+
             // Tim Marketing - user 2, 4, 5
             { group_id: 'group_2', user_id: 2, role: 'admin' },
             { group_id: 'group_2', user_id: 4, role: 'member' },
             { group_id: 'group_2', user_id: 5, role: 'member' },
-            
+
             // Tim Development - user 1, 3
             { group_id: 'group_3', user_id: 1, role: 'admin' },
             { group_id: 'group_3', user_id: 3, role: 'member' },
-            
+
             // Announcement - semua user
             { group_id: 'group_4', user_id: 1, role: 'admin' },
             { group_id: 'group_4', user_id: 2, role: 'member' },
@@ -161,7 +161,7 @@ const createChatGroups = async () => {
 
         // Step 5: Create some sample group messages
         console.log('\n💬 Step 5: Creating sample group messages...');
-        
+
         const sampleMessages = [
             { group_id: 'group_1', sender_id: 1, message: 'Selamat datang di grup utama Bosgil Group!' },
             { group_id: 'group_1', sender_id: 2, message: 'Terima kasih! Senang bergabung' },
@@ -194,11 +194,11 @@ const createChatGroups = async () => {
         const totalGroups = await sequelize.query(`
             SELECT COUNT(*) as count FROM chat_groups WHERE status_deleted = 0
         `, { type: sequelize.QueryTypes.SELECT });
-        
+
         const totalMembers = await sequelize.query(`
             SELECT COUNT(*) as count FROM group_members WHERE status_deleted = 0
         `, { type: sequelize.QueryTypes.SELECT });
-        
+
         const totalGroupMessages = await sequelize.query(`
             SELECT COUNT(*) as count FROM messages WHERE is_group_message = true AND status_deleted = 0
         `, { type: sequelize.QueryTypes.SELECT });

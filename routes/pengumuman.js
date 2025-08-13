@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { Pengumuman, User } = require('../models');
 const { Op } = require('sequelize');
+const notificationService = require('../services/notificationService');
 
 // Get all pengumuman with pagination and filters
 router.get('/', async (req, res) => {
@@ -202,6 +203,20 @@ router.post('/', async (req, res) => {
 
     const pengumumanResponse = createdPengumuman.toJSON();
 
+    // Send notification to all active users
+    try {
+      const wsService = req.app.get('wsService');
+      await notificationService.sendPengumumanNotification(
+        pengumumanResponse, 
+        penulis, 
+        'created', 
+        wsService
+      );
+    } catch (notifError) {
+      console.error('Error sending pengumuman notification:', notifError);
+      // Don't fail the request if notification fails
+    }
+
     res.status(201).json({
       success: true,
       message: 'Pengumuman created successfully',
@@ -294,12 +309,27 @@ router.put('/:id', async (req, res) => {
         {
           model: User,
           as: 'penulis',
-          attributes: ['id', 'nama', 'email']
+          attributes: ['id', 'nama', 'email', 'role']
         }
       ]
     });
 
     const pengumumanResponse = updatedPengumuman.toJSON();
+    const penulis = updatedPengumuman.penulis;
+
+    // Send notification to all active users about update
+    try {
+      const wsService = req.app.get('wsService');
+      await notificationService.sendPengumumanNotification(
+        pengumumanResponse, 
+        penulis, 
+        'updated', 
+        wsService
+      );
+    } catch (notifError) {
+      console.error('Error sending pengumuman update notification:', notifError);
+      // Don't fail the request if notification fails
+    }
 
     res.json({
       success: true,

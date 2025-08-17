@@ -4,7 +4,7 @@ require('dotenv').config();
 class OmsetHarian {
     static async getConnection() {
         return await mysql.createConnection({
-            host: process.env.DB_HOST || '192.168.38.223',
+            host: process.env.DB_HOST || '192.168.30.124',
             port: process.env.DB_PORT || 3306,
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',

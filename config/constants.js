@@ -1,15 +1,21 @@
 // Backend Configuration Constants
 require('dotenv').config();
 
+// Debug environment variables
+console.log('🔍 Environment Variables Debug:');
+console.log('🔍 process.env.API_BASE_URL:', process.env.API_BASE_URL);
+console.log('🔍 process.env.DB_HOST:', process.env.DB_HOST);
+console.log('🔍 process.env.NODE_ENV:', process.env.NODE_ENV);
+
 const API_CONFIG = {
     // Base URLs
-    BASE_URL: process.env.API_BASE_URL || 'http://192.168.30.21:3000',
+    BASE_URL: process.env.API_BASE_URL || 'http://192.168.30.124:3000',
     FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
     PORT: process.env.PORT || 3000,
 
     // Database Configuration
     DATABASE: {
-        HOST: process.env.DB_HOST || '192.168.38.223',
+        HOST: process.env.DB_HOST || '192.168.30.124',
         USER: process.env.DB_USER || 'root',
         PASSWORD: process.env.DB_PASSWORD || '',
         NAME: process.env.DB_NAME || 'bosgil_group_db',
@@ -31,7 +37,7 @@ const API_CONFIG = {
 
     // CORS Configuration
     CORS: {
-        ORIGIN: process.env.FRONTEND_URL || 'http://192.168.38.223:5173',
+        ORIGIN: process.env.FRONTEND_URL || 'http://192.168.30.124:5173',
         CREDENTIALS: true,
     },
 
@@ -50,6 +56,10 @@ const API_CONFIG = {
         HEALTH: '/health',
     },
 };
+
+// Debug final config
+console.log('🔍 Final API_CONFIG.BASE_URL:', API_CONFIG.BASE_URL);
+console.log('🔍 Final API_CONFIG.DATABASE.HOST:', API_CONFIG.DATABASE.HOST);
 
 // Helper functions
 const getDatabaseUrl = () => {

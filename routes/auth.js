@@ -155,4 +155,59 @@ router.get('/me', async (req, res) => {
   }
 });
 
+// GET /api/auth/verify - Verify token validity
+router.get('/verify', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token tidak ditemukan'
+      });
+    }
+    
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'bosgil_group');
+    
+    const user = await User.findOne({
+      where: {
+        id: decoded.userId,
+        status_deleted: false,
+        status: 'active'
+      }
+    });
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token valid',
+      data: {
+        userId: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error verifying token:', error);
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token tidak valid'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 module.exports = router; 

@@ -68,6 +68,27 @@ const laporanKeuanganStorage = multer.diskStorage({
   }
 });
 
+// Configure storage for ANEKA GRAFIK images
+const anekaGrafikStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const anekaGrafikDir = path.join(uploadsDir, 'aneka-grafik');
+
+    // Create aneka-grafik directory if it doesn't exist
+    if (!require('fs').existsSync(anekaGrafikDir)) {
+      require('fs').mkdirSync(anekaGrafikDir, { recursive: true });
+    }
+
+    cb(null, anekaGrafikDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'aneka-grafik-' + uniqueSuffix + ext);
+  }
+});
+
 // Configure multer for POSKAS uploads
 const poskasUpload = multer({
   storage: poskasStorage,
@@ -116,6 +137,23 @@ const laporanKeuanganUpload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit for LAPORAN KEUANGAN images
     files: 5 // Maximum 5 images per LAPORAN KEUANGAN
+  }
+});
+
+// Configure multer for ANEKA GRAFIK uploads
+const anekaGrafikUpload = multer({
+  storage: anekaGrafikStorage,
+  fileFilter: (req, file, cb) => {
+    // Allow only images for ANEKA GRAFIK
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for ANEKA GRAFIK'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for ANEKA GRAFIK images
+    files: 5 // Maximum 5 images per ANEKA GRAFIK
   }
 });
 
@@ -355,6 +393,63 @@ router.post('/laporan-keuangan', authenticateToken, laporanKeuanganUpload.array(
   }
 });
 
+// Upload ANEKA GRAFIK images
+router.post('/aneka-grafik', authenticateToken, anekaGrafikUpload.array('images', 5), (req, res) => {
+  console.log('📁 ANEKA GRAFIK upload request received');
+  console.log('📁 User:', req.user.id);
+  console.log('📁 Files:', req.files ? req.files.length : 0);
+
+  try {
+    if (!req.files || req.files.length === 0) {
+      console.log('❌ No ANEKA GRAFIK images uploaded');
+      return res.status(400).json({
+        success: false,
+        message: 'No images uploaded'
+      });
+    }
+
+    console.log('📁 Processing ANEKA GRAFIK images...');
+    const uploadedFiles = req.files.map((file, index) => {
+      console.log(`📁 Processing ANEKA GRAFIK image ${index + 1}:`, {
+        fieldname: file.fieldname,
+        originalname: file.originalname,
+        mimetype: file.mimetype,
+        size: file.size,
+        path: file.path
+      });
+
+      // Create relative path for database storage
+      const relativePath = path.relative(path.join(__dirname, '../uploads'), file.path);
+
+      const fileInfo = {
+        originalName: file.originalname,
+        filename: file.filename,
+        path: relativePath.replace(/\\/g, '/'), // Convert Windows path to URL format
+        mimetype: file.mimetype,
+        size: file.size,
+        url: `/uploads/${relativePath.replace(/\\/g, '/')}` // URL for accessing the file
+      };
+
+      console.log('📁 ANEKA GRAFIK image processed:', fileInfo);
+      return fileInfo;
+    });
+
+    console.log('✅ ANEKA GRAFIK upload successful, returning:', uploadedFiles.length, 'images');
+    res.json({
+      success: true,
+      message: 'ANAKA GRAFIK images uploaded successfully',
+      data: uploadedFiles
+    });
+  } catch (error) {
+    console.error('❌ Error uploading ANEKA GRAFIK images:', error);
+    console.error('❌ Error stack:', error.stack);
+    res.status(500).json({
+      success: false,
+      message: 'Error uploading ANEKA GRAFIK images'
+    });
+  }
+});
+
 // Serve uploaded files
 router.get('/uploads/*', (req, res) => {
   const filePath = path.join(__dirname, '../uploads', req.params[0]);
@@ -409,6 +504,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Only image files are allowed for LAPORAN KEUANGAN uploads.'
+    });
+  }
+
+  if (err.message === 'Only image files are allowed for ANEKA GRAFIK') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image files are allowed for ANEKA GRAFIK uploads.'
     });
   }
 

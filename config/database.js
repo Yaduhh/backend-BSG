@@ -4,20 +4,21 @@ const fs = require('fs');
 
 // Baca file .env secara manual
 const envPath = path.join(__dirname, '../.env');
+const configPath = path.join(__dirname, '../config.env');
 let envConfig = {};
 
 if (fs.existsSync(envPath)) {
   // Baca file dengan encoding yang benar
   const envContent = fs.readFileSync(envPath, 'utf8');
-  
+
   // Bersihkan BOM dan karakter aneh
   const cleanContent = envContent
     .replace(/^\uFEFF/, '') // Remove BOM
     .replace(/\r\n/g, '\n') // Normalize line endings
     .replace(/\r/g, '\n');
-  
+
   console.log('📄 Reading .env file from:', envPath);
-  
+
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -30,10 +31,37 @@ if (fs.existsSync(envPath)) {
       }
     }
   });
-  
+
+  console.log('📝 Final envConfig:', envConfig);
+} else if (fs.existsSync(configPath)) {
+  // Baca file config.env sebagai alternatif
+  const configContent = fs.readFileSync(configPath, 'utf8');
+
+  // Bersihkan BOM dan karakter aneh
+  const cleanContent = configContent
+    .replace(/^\uFEFF/, '') // Remove BOM
+    .replace(/\r\n/g, '\n') // Normalize line endings
+    .replace(/\r/g, '\n');
+
+  console.log('📄 Reading config.env file from:', configPath);
+
+  cleanContent.split('\n').forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, value] = line.split('=');
+      if (key && value !== undefined) {
+        const cleanKey = key.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
+        const cleanValue = value.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
+        envConfig[cleanKey] = cleanValue;
+        console.log(`📝 Parsed: ${cleanKey} = ${cleanValue}`);
+      }
+    }
+  });
+
   console.log('📝 Final envConfig:', envConfig);
 } else {
   console.log('❌ .env file not found at:', envPath);
+  console.log('❌ config.env file not found at:', configPath);
 }
 
 // Load dotenv juga sebagai backup

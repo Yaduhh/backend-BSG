@@ -27,7 +27,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const config = {
-  host: envConfig.DB_HOST || '192.168.30.124',
+  host: envConfig.DB_HOST || 'localhost',
   port: envConfig.DB_PORT || 3306,
   user: envConfig.DB_USER || 'root',
   password: envConfig.DB_PASSWORD || '',
@@ -41,7 +41,8 @@ class KeuanganPoskas {
 
   // Get database connection
   async getConnection() {
-    return await mysql.createConnection(config);
+    const { getConnection } = require('../config/mysqlPool');
+    return await getConnection();
   }
 
   // Get all keuangan poskas (not deleted)
@@ -57,7 +58,7 @@ class KeuanganPoskas {
       );
       return rows;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -74,7 +75,7 @@ class KeuanganPoskas {
       );
       return rows[0] || null;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -92,7 +93,7 @@ class KeuanganPoskas {
       );
       return rows;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -110,7 +111,7 @@ class KeuanganPoskas {
       );
       return rows;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -141,7 +142,7 @@ class KeuanganPoskas {
       console.error('❌ Error in create method:', error);
       throw error;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -164,7 +165,7 @@ class KeuanganPoskas {
 
       return await this.getById(id);
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -185,7 +186,7 @@ class KeuanganPoskas {
 
       return { success: true, message: 'Keuangan poskas deleted successfully' };
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -204,7 +205,7 @@ class KeuanganPoskas {
 
       return { success: true, message: 'Keuangan poskas permanently deleted' };
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -224,7 +225,7 @@ class KeuanganPoskas {
 
       return rows[0];
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -244,7 +245,7 @@ class KeuanganPoskas {
       );
       return rows;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -263,7 +264,7 @@ class KeuanganPoskas {
       );
       return rows;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -329,7 +330,7 @@ class KeuanganPoskas {
     } catch (error) {
       console.error('❌ Error checking/fixing auto increment:', error);
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -368,7 +369,7 @@ class KeuanganPoskas {
       console.error('❌ Error getting next image ID:', error);
       return 0;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 
@@ -392,7 +393,7 @@ class KeuanganPoskas {
       console.error('❌ Error getting next record ID:', error);
       return 1;
     } finally {
-      await connection.end();
+      connection.release();
     }
   }
 }

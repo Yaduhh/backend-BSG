@@ -2,7 +2,7 @@
 
 ## 🚨 **Masalah IP Address Lama**
 
-Backend masih menggunakan IP address lama `192.168.30.124` karena environment variable yang tidak ter-set dengan benar.
+Backend masih menggunakan IP address lama `192.168.0.104` karena environment variable yang tidak ter-set dengan benar.
 
 ## 🔧 **Solusi 1: Menggunakan Script (Recommended)**
 
@@ -28,9 +28,9 @@ npm run dev
 
 ### **Untuk Windows Command Prompt:**
 ```cmd
-set API_BASE_URL=http://192.168.30.124:3000
-set FRONTEND_URL=http://192.168.30.124:5173
-set DB_HOST=192.168.30.124
+set API_BASE_URL=http://192.168.0.104:3000
+set FRONTEND_URL=http://192.168.0.104:5173
+set DB_HOST=192.168.0.104
 set NODE_ENV=development
 
 npm run dev
@@ -38,9 +38,9 @@ npm run dev
 
 ### **Untuk Windows PowerShell:**
 ```powershell
-$env:API_BASE_URL = "http://192.168.30.124:3000"
-$env:FRONTEND_URL = "http://192.168.30.124:5173"
-$env:DB_HOST = "192.168.30.124"
+$env:API_BASE_URL = "http://192.168.0.104:3000"
+$env:FRONTEND_URL = "http://192.168.0.104:5173"
+$env:DB_HOST = "192.168.0.104"
 $env:NODE_ENV = "development"
 
 npm run dev
@@ -51,18 +51,18 @@ npm run dev
 ### **Untuk Windows:**
 1. Buka **System Properties** → **Environment Variables**
 2. Di **User Variables**, tambahkan:
-   - `API_BASE_URL` = `http://192.168.30.124:3000`
-   - `FRONTEND_URL` = `http://192.168.30.124:5173`
-   - `DB_HOST` = `192.168.30.124`
+   - `API_BASE_URL` = `http://192.168.0.104:3000`
+   - `FRONTEND_URL` = `http://192.168.0.104:5173`
+   - `DB_HOST` = `192.168.0.104`
    - `NODE_ENV` = `development`
 3. Restart terminal/command prompt
 4. Jalankan `npm run dev`
 
 ## 📍 **IP Address yang Benar:**
 
-- **Backend API**: `http://192.168.30.124:3000`
-- **Frontend**: `http://192.168.30.124:5173`
-- **Database**: `192.168.30.124:3306`
+- **Backend API**: `http://192.168.0.104:3000`
+- **Frontend**: `http://192.168.0.104:5173`
+- **Database**: `192.168.0.104:3306`
 
 ## 🚀 **Cara Test:**
 
@@ -74,10 +74,10 @@ npm run dev
 Seharusnya output:
 ```
 🚀 Server berhasil dijalankan!
-📡 HTTP API: http://192.168.30.124:3000
-🔌 WebSocket: ws://192.168.30.124:3000
-📊 Health Check: http://192.168.30.124:3000/api/health
-👥 Users API: http://192.168.30.124:3000/api/users
+📡 HTTP API: http://192.168.0.104:3000
+🔌 WebSocket: ws://192.168.0.104:3000
+📊 Health Check: http://192.168.0.104:3000/api/health
+👥 Users API: http://192.168.0.104:3000/api/users
 ```
 
 ## ❓ **Troubleshooting:**

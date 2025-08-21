@@ -3,13 +3,8 @@ require('dotenv').config();
 
 class OmsetHarian {
     static async getConnection() {
-        return await mysql.createConnection({
-            host: process.env.DB_HOST || '192.168.30.124',
-            port: process.env.DB_PORT || 3306,
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_NAME || 'sistem_bosgil_group'
-        });
+        const { getConnection } = require('../config/mysqlPool');
+        return await getConnection();
     }
 
     static async getAll(page = 1, limit = 10, search = '', dateFilter = '') {
@@ -71,7 +66,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.getAll:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 

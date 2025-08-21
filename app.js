@@ -34,12 +34,19 @@ const ownerTrainingRoutes = require('./routes/ownerTraining');
 const adminTrainingRoutes = require('./routes/adminTraining');
 const adminDataAsetRoutes = require('./routes/adminDataAset');
 
+// Import new routes for role-based access
+const adminKeuanganPoskasRoutes = require('./routes/adminKeuanganPoskas');
+const timKeuanganPoskasRoutes = require('./routes/timKeuanganPoskas');
+const divisiKeuanganPoskasRoutes = require('./routes/divisiKeuanganPoskas');
+const timKomplainRoutes = require('./routes/timKomplain');
+
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
 const models = require('./models'); // Initialize models and associations
 
 const app = express();
 const server = http.createServer(app);
+
 
 // WebSocket service setup
 const webSocketService = require('./services/webSocketService');
@@ -76,6 +83,13 @@ app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
 app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
+
+// New role-based routes
+app.use('/api/admin/keuangan-poskas', adminKeuanganPoskasRoutes);
+app.use('/api/tim/keuangan-poskas', timKeuanganPoskasRoutes);
+app.use('/api/divisi/keuangan-poskas', divisiKeuanganPoskasRoutes);
+app.use('/api/tim/komplain', timKomplainRoutes);
+
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/health', require('./routes/health'));
 

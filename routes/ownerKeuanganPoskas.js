@@ -148,6 +148,54 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Get general statistics (owner only)
+router.get('/stats', authenticateToken, async (req, res) => {
+  try {
+    // Check if user is owner
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Owner only.'
+      });
+    }
+
+    // Get all poskas data for stats calculation
+    const allPoskas = await KeuanganPoskas.getAll();
+    
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    
+    // Filter data for current month and year
+    const thisMonthPoskas = allPoskas.filter(item => {
+      const itemDate = new Date(item.tanggal_poskas);
+      return itemDate.getMonth() === thisMonth && itemDate.getFullYear() === thisYear;
+    });
+    
+    const thisYearPoskas = allPoskas.filter(item => {
+      const itemDate = new Date(item.tanggal_poskas);
+      return itemDate.getFullYear() === thisYear;
+    });
+    
+    res.json({
+      success: true,
+      data: {
+        totalPoskas: allPoskas.length,
+        totalThisMonth: thisMonthPoskas.length,
+        totalThisYear: thisYearPoskas.length,
+        currentMonth: thisMonth + 1,
+        currentYear: thisYear
+      }
+    });
+  } catch (error) {
+    console.error('Error getting general stats for owner:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // Get monthly summary statistics (owner only)
 router.get('/stats/monthly/:year/:month', authenticateToken, async (req, res) => {
   try {

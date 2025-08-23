@@ -100,7 +100,7 @@ class LaporanKeuangan {
             console.error('Error in LaporanKeuangan.getById:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -125,7 +125,7 @@ class LaporanKeuangan {
             console.error('Error in LaporanKeuangan.create:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -155,7 +155,7 @@ class LaporanKeuangan {
             console.error('Error in LaporanKeuangan.update:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -180,7 +180,7 @@ class LaporanKeuangan {
             console.error('Error in LaporanKeuangan.delete:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -207,7 +207,7 @@ class LaporanKeuangan {
             console.error('Error in LaporanKeuangan.getStats:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 }

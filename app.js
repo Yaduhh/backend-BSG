@@ -35,6 +35,9 @@ const adminTrainingRoutes = require('./routes/adminTraining');
 const adminDataAsetRoutes = require('./routes/adminDataAset');
 const adminDataSupplierRoutes = require('./routes/adminDataSupplier');
 const adminMedsosRoutes = require('./routes/adminMedsos');
+const adminDataTargetRoutes = require('./routes/adminDataTarget');
+const adminDataBinaLingkunganRoutes = require('./routes/adminDataBinaLingkungan');
+const adminDataInvestorRoutes = require('./routes/adminDataInvestor');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -80,6 +83,9 @@ app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
 app.use('/api/admin/medsos', adminMedsosRoutes);
+app.use('/api/admin/data-target', adminDataTargetRoutes);
+app.use('/api/admin/data-bina-lingkungan', adminDataBinaLingkunganRoutes);
+app.use('/api/admin/data-investor', adminDataInvestorRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/health', require('./routes/health'));
 

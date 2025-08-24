@@ -12,6 +12,8 @@ const Pengumuman = require('./Pengumuman');
 const TimMerah = require('./TimMerah');
 const TimBiru = require('./TimBiru');
 const DataAset = require('./DataAset');
+const DataTarget = require('./DataTarget');
+const DataInvestor = require('./DataInvestor');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -55,6 +57,12 @@ TimBiru.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 User.hasMany(DataAset, { foreignKey: 'created_by', as: 'dataAsetEntries' });
 DataAset.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+// DataTarget associations
+User.hasMany(DataTarget, { foreignKey: 'created_by', as: 'dataTargetEntries' });
+User.hasMany(DataTarget, { foreignKey: 'updated_by', as: 'dataTargetUpdates' });
+DataTarget.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+DataTarget.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
 // KeuanganPoskas associations - commented out because it's not a Sequelize model
 // User.hasMany(KeuanganPoskas, { foreignKey: 'user_id' });
 // KeuanganPoskas.belongsTo(User, { foreignKey: 'user_id' });
@@ -83,5 +91,7 @@ module.exports = {
   Pengumuman,
   TimMerah,
   TimBiru,
-  DataAset
+  DataAset,
+  DataTarget,
+  DataInvestor
 }; 

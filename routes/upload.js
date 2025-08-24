@@ -450,11 +450,11 @@ router.post('/aneka-grafik', authenticateToken, anekaGrafikUpload.array('images'
   }
 });
 
-// Serve uploaded files
-router.get('/uploads/*', (req, res) => {
-  const filePath = path.join(__dirname, '../uploads', req.params[0]);
-  res.sendFile(filePath);
-});
+// Serve uploaded files - REMOVED to avoid conflict with static file serving in app.js
+// router.get('/uploads/*', (req, res) => {
+//   const filePath = path.join(__dirname, '../uploads', req.params[0]);
+//   res.sendFile(filePath);
+// });
 
 // Error handling middleware
 router.use((err, req, res, next) => {

@@ -100,7 +100,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.getById:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -125,7 +125,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.create:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -155,7 +155,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.update:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -180,7 +180,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.delete:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 
@@ -231,7 +231,7 @@ class OmsetHarian {
             console.error('Error in OmsetHarian.getStats:', error);
             return { success: false, error: error.message };
         } finally {
-            if (connection) await connection.end();
+            if (connection) connection.release();
         }
     }
 }

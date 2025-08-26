@@ -123,7 +123,7 @@ Authorization: Bearer <jwt_token>
 ### cURL
 ```bash
 curl -X PUT \
-  http://192.168.30.130:3000/api/admin/change-password \
+  http://192.168.66.232:3000/api/admin/change-password \
   -H 'Authorization: Bearer <jwt_token>' \
   -H 'Content-Type: application/json' \
   -d '{

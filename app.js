@@ -35,9 +35,13 @@ const adminTrainingRoutes = require('./routes/adminTraining');
 const adminDataAsetRoutes = require('./routes/adminDataAset');
 const adminDataSupplierRoutes = require('./routes/adminDataSupplier');
 const adminMedsosRoutes = require('./routes/adminMedsos');
+const ownerMedsosRoutes = require('./routes/ownerMedsos');
 const adminDataTargetRoutes = require('./routes/adminDataTarget');
+const ownerDataTargetRoutes = require('./routes/ownerDataTarget');
 const adminDataBinaLingkunganRoutes = require('./routes/adminDataBinaLingkungan');
+const ownerDataBinaLingkunganRoutes = require('./routes/ownerDataBinaLingkungan');
 const adminDataInvestorRoutes = require('./routes/adminDataInvestor');
+const ownerDataInvestorRoutes = require('./routes/ownerDataInvestor');
 const anekaSuratRoutes = require('./routes/anekaSurat');
 
 // Import database config and models
@@ -84,9 +88,13 @@ app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
 app.use('/api/admin/medsos', adminMedsosRoutes);
+app.use('/api/owner/medsos', ownerMedsosRoutes);
 app.use('/api/admin/data-target', adminDataTargetRoutes);
+app.use('/api/owner/data-target', ownerDataTargetRoutes);
 app.use('/api/admin/data-bina-lingkungan', adminDataBinaLingkunganRoutes);
+app.use('/api/owner/data-bina-lingkungan', ownerDataBinaLingkunganRoutes);
 app.use('/api/admin/data-investor', adminDataInvestorRoutes);
+app.use('/api/owner/data-investor', ownerDataInvestorRoutes);
 app.use('/api/admin/aneka-surat', anekaSuratRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/health', require('./routes/health'));

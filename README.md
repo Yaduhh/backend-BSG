@@ -45,10 +45,10 @@ npm start
 ### 4. Test Server
 ```bash
 # Health check
-curl http://192.168.30.130:3000/api/health
+curl http://192.168.66.232:3000/api/health
 
 # Server status
-curl http://192.168.30.130:3000/api/status
+curl http://192.168.66.232:3000/api/status
 ```
 
 ## 📡 API Endpoints
@@ -144,13 +144,13 @@ socket.on('new_message', (message) => {
 ### Test HTTP API
 ```bash
 # Health check
-curl http://192.168.30.130:3000/api/health
+curl http://192.168.66.232:3000/api/health
 
 # Get orders
-curl http://192.168.30.130:3000/api/orders
+curl http://192.168.66.232:3000/api/orders
 
 # Create order
-curl -X POST http://192.168.30.130:3000/api/orders \
+curl -X POST http://192.168.66.232:3000/api/orders \
   -H "Content-Type: application/json" \
   -d '{"customer":"John Doe","amount":150000}'
 ```
@@ -163,8 +163,8 @@ Gunakan tools seperti:
 
 ## 📊 Monitoring
 
-- **Health Check**: `http://192.168.30.130:3000/api/health`
-- **Server Status**: `http://192.168.30.130:3000/api/status`
+- **Health Check**: `http://192.168.66.232:3000/api/health`
+- **Server Status**: `http://192.168.66.232:3000/api/status`
 
 ## 🔧 Environment Variables
 
@@ -176,7 +176,7 @@ PORT=3000
 NODE_ENV=development
 
 # Database Configuration
-DB_HOST=192.168.30.130
+DB_HOST=192.168.66.232
 DB_PORT=3306
 DB_NAME=bosgil_db
 DB_USER=root
@@ -198,7 +198,7 @@ WS_CORS_ORIGIN=*
 - `NODE_ENV=development` - Environment (development/production)
 
 **Database Configuration:**
-- `DB_HOST=192.168.30.130` - Host MySQL server
+- `DB_HOST=192.168.66.232` - Host MySQL server
 - `DB_PORT=3306` - Port MySQL (default 3306)
 - `DB_NAME=bosgil_db` - Nama database (buat dulu di MySQL)
 - `DB_USER=root` - Username MySQL

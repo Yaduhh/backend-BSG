@@ -40,8 +40,7 @@ const upload = multer({
 
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const anekaSurat = new AnekaSurat();
-    const data = await anekaSurat.getAll();
+    const data = await AnekaSurat.getAll();
     
     res.json({
       success: true,
@@ -56,10 +55,27 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
+router.get('/document-types', authenticateToken, async (req, res) => {
+  try {
+    const types = await AnekaSurat.getDocumentTypes();
+    
+    res.json({
+      success: true,
+      data: types
+    });
+  } catch (error) {
+    console.error('Error fetching document types:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil jenis dokumen'
+    });
+  }
+});
+
+// Keep the old endpoint for backward compatibility
 router.get('/types', authenticateToken, async (req, res) => {
   try {
-    const anekaSurat = new AnekaSurat();
-    const types = await anekaSurat.getDocumentTypes();
+    const types = await AnekaSurat.getDocumentTypes();
     
     res.json({
       success: true,
@@ -77,8 +93,7 @@ router.get('/types', authenticateToken, async (req, res) => {
 router.get('/type/:type', authenticateToken, async (req, res) => {
   try {
     const { type } = req.params;
-    const anekaSurat = new AnekaSurat();
-    const data = await anekaSurat.getByType(type);
+    const data = await AnekaSurat.getByType(type);
     
     res.json({
       success: true,
@@ -96,8 +111,7 @@ router.get('/type/:type', authenticateToken, async (req, res) => {
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const anekaSurat = new AnekaSurat();
-    const data = await anekaSurat.getById(id);
+    const data = await AnekaSurat.getById(id);
     
     if (!data) {
       return res.status(404).json({
@@ -140,8 +154,7 @@ router.post('/', authenticateToken, upload.array('files', 10), async (req, res) 
       }));
     }
     
-    const anekaSurat = new AnekaSurat();
-    const insertId = await anekaSurat.create({
+    const insertId = await AnekaSurat.create({
       jenis_dokumen,
       judul_dokumen,
       lampiran: JSON.stringify(lampiran),
@@ -193,8 +206,7 @@ router.put('/:id', authenticateToken, upload.array('files', 10), async (req, res
       lampiran = [...lampiran, ...newFiles];
     }
     
-    const anekaSurat = new AnekaSurat();
-    const updated = await anekaSurat.update(id, {
+    const updated = await AnekaSurat.update(id, {
       jenis_dokumen,
       judul_dokumen,
       lampiran: JSON.stringify(lampiran)
@@ -223,8 +235,7 @@ router.put('/:id', authenticateToken, upload.array('files', 10), async (req, res
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const anekaSurat = new AnekaSurat();
-    const deleted = await anekaSurat.delete(id);
+    const deleted = await AnekaSurat.delete(id);
     
     if (!deleted) {
       return res.status(404).json({
@@ -242,6 +253,38 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal menghapus data aneka surat'
+    });
+  }
+});
+
+// Download attachment endpoint
+router.get('/:id/download/:filename', authenticateToken, async (req, res) => {
+  try {
+    const { id, filename } = req.params;
+    const data = await AnekaSurat.getById(id);
+    
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data tidak ditemukan'
+      });
+    }
+    
+    const filePath = path.join(__dirname, '../uploads/aneka-surat', filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+    
+    res.download(filePath);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengunduh file'
     });
   }
 });

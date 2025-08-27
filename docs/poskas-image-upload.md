@@ -127,6 +127,7 @@ const imagesWithServerUrls = uploadedImages.map((img, index) => {
 
 ### Format URL
 ```
+http://192.168.0.107:3000/uploads/poskas/poskas-{timestamp}-{random}.{ext}
 http://192.168.30.490.104:3000/uploads/poskas/poskas-{timestamp}-{random}.{ext}
 ```
 

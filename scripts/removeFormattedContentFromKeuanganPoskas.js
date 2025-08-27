@@ -27,7 +27,7 @@ if (fs.existsSync(envPath)) {
 }
 
 const config = {
-  host: envConfig.DB_HOST || '192.168.66.232',
+  host: envConfig.DB_HOST || '192.168.0.107',
   port: envConfig.DB_PORT || 3306,
   user: envConfig.DB_USER || 'root',
   password: envConfig.DB_PASSWORD || '',

@@ -3,9 +3,9 @@
 Write-Host "Setting environment variables for Bosgil Group Backend..." -ForegroundColor Green
 
 # Set environment variables
-$env:API_BASE_URL = "http://192.168.66.232:3000"
-$env:FRONTEND_URL = "http://192.168.66.232:5173"
-$env:DB_HOST = "192.168.66.232"
+$env:API_BASE_URL = "http://192.168.0.107:3000"
+$env:FRONTEND_URL = "http://192.168.0.107:5173"
+$env:DB_HOST = "192.168.0.107"
 $env:NODE_ENV = "development"
 
 Write-Host "Environment variables set:" -ForegroundColor Yellow

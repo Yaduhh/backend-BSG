@@ -7,7 +7,7 @@ const { sendChatNotification } = require('../services/notificationService');
 // Get all chat contacts (users with status_deleted = 0, excluding current user)
 router.get('/contacts', async (req, res) => {
   try {
-    const currentUserId = req.query.current_user_id; // Get from query parameter
+    const currentUserId = parseInt(req.query.current_user_id); // Get from query parameter
     
     if (!currentUserId) {
       return res.status(400).json({
@@ -16,70 +16,30 @@ router.get('/contacts', async (req, res) => {
       });
     }
 
-    // Get existing chat rooms for current user
-    const existingChatRooms = await ChatRoom.findAll({
-      where: {
-        [Op.or]: [
-          { user1_id: currentUserId },
-          { user2_id: currentUserId }
-        ],
-        status_deleted: 0
-      },
-      attributes: ['user1_id', 'user2_id']
-    });
-
-    // Get user IDs that already have chat rooms
-    const existingUserIds = existingChatRooms.map(room => 
-      room.user1_id === currentUserId ? room.user2_id : room.user1_id
-    );
-
+    // Get all users except current user (including those with existing chats)
     const users = await User.findAll({
       where: {
         status_deleted: 0,
         id: {
-          [Op.ne]: currentUserId, // Exclude current user
-          [Op.notIn]: existingUserIds // Exclude users with existing chat rooms
+          [Op.ne]: currentUserId // Exclude current user only
         }
       },
       attributes: ['id', 'nama', 'username', 'email', 'role'],
       order: [['nama', 'ASC']]
     });
 
-    // Get chat rooms for current user to include last_message
-    const chatRooms = await ChatRoom.findAll({
-      where: {
-        [Op.or]: [
-          { user1_id: currentUserId },
-          { user2_id: currentUserId }
-        ],
-        status_deleted: 0
-      },
-      attributes: ['user1_id', 'user2_id', 'last_message', 'last_message_time'],
-      order: [['last_message_time', 'DESC']]
-    });
-
-    // Create a map of user_id to last_message
-    const lastMessageMap = {};
-    chatRooms.forEach(room => {
-      const otherUserId = room.user1_id == currentUserId ? room.user2_id : room.user1_id;
-      if (!lastMessageMap[otherUserId] || room.last_message_time > lastMessageMap[otherUserId].last_message_time) {
-        lastMessageMap[otherUserId] = {
-          last_message: room.last_message,
-          last_message_time: room.last_message_time
-        };
-      }
-    });
-
-    // Add last_message info to users
-    const usersWithLastMessage = users.map(user => ({
-      ...user.toJSON(),
-      last_message: lastMessageMap[user.id]?.last_message || null,
-      last_message_time: lastMessageMap[user.id]?.last_message_time || null
+    // Format response
+    const formattedUsers = users.map(user => ({
+      id: user.id,
+      nama: user.nama || user.username || 'User',
+      username: user.username,
+      email: user.email,
+      role: user.role || 'User'
     }));
 
     res.json({
       success: true,
-      data: usersWithLastMessage
+      data: formattedUsers
     });
   } catch (error) {
     console.error('Error fetching contacts:', error);

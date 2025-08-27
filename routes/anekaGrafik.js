@@ -100,12 +100,15 @@ router.post('/upload', authenticateToken, upload.array('images', 5), async (req,
                 destination: file.destination
             });
 
+            // Create relative path for database storage
+            const relativePath = path.relative(path.join(__dirname, '..', 'uploads'), file.path);
+
             const fileInfo = {
                 uri: `file://temp/${Date.now()}_${Math.floor(Math.random() * 1000000)}.jpg`,
                 id: Date.now() + Math.floor(Math.random() * 1000000),
                 name: file.originalname,
-                url: `${req.protocol}://${req.get('host')}/${file.path}`,
-                serverPath: file.path
+                url: `/uploads/${relativePath.replace(/\\/g, '/')}`, // Use relative path for URL
+                serverPath: relativePath.replace(/\\/g, '/') // Store relative path
             };
 
             console.log('📁 File info created:', fileInfo);

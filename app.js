@@ -35,6 +35,7 @@ const adminTrainingRoutes = require('./routes/adminTraining');
 const adminDataAsetRoutes = require('./routes/adminDataAset');
 const adminDataSupplierRoutes = require('./routes/adminDataSupplier');
 const adminMedsosRoutes = require('./routes/adminMedsos');
+const kpiRoutes = require('./routes/kpiRoutes');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -81,6 +82,7 @@ app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
 app.use('/api/admin/medsos', adminMedsosRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
+app.use('/api/kpi', kpiRoutes);
 app.use('/api/health', require('./routes/health'));
 
 // Serve static files from uploads directory

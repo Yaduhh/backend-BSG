@@ -26,6 +26,15 @@ const poskasStorage = multer.diskStorage({
   }
 });
 
+// Upload KPI image (single file) - defined after kpiUpload initialization
+// (moved from earlier to avoid temporal dead zone on kpiUpload reference)
+// The route path here is '/kpi'; when this router is mounted under '/api/upload',
+// the full endpoint becomes '/api/upload/kpi'.
+// Note: requires 'Authorization: Bearer <token>' header
+// and expects field name 'image'.
+
+ 
+
 // Configure storage for OMSET HARIAN images
 const omsetHarianStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -154,6 +163,77 @@ const anekaGrafikUpload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit for ANEKA GRAFIK images
     files: 5 // Maximum 5 images per ANEKA GRAFIK
+  }
+});
+
+// Configure storage for KPI images
+const kpiStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, '../uploads');
+    const kpiDir = path.join(uploadsDir, 'KPI');
+
+    // Create KPI directory if it doesn't exist
+    if (!require('fs').existsSync(kpiDir)) {
+      require('fs').mkdirSync(kpiDir, { recursive: true });
+    }
+
+    cb(null, kpiDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, 'kpi-' + uniqueSuffix + ext);
+  }
+});
+
+// Configure multer for KPI uploads (single image)
+const kpiUpload = multer({
+  storage: kpiStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for KPI'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for KPI images
+  }
+});
+
+// Upload KPI image (single file)
+router.post('/kpi', authenticateToken, kpiUpload.single('image'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'No image uploaded'
+      });
+    }
+
+    // Create relative path for database storage
+    const relativePath = path.relative(path.join(__dirname, '../uploads'), req.file.path);
+    const fileInfo = {
+      originalName: req.file.originalname,
+      filename: req.file.filename,
+      path: relativePath.replace(/\\/g, '/'), // Convert Windows path to URL format
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      url: `/uploads/${relativePath.replace(/\\/g, '/')}` // URL for accessing the file
+    };
+
+    return res.json({
+      success: true,
+      message: 'KPI image uploaded successfully',
+      data: fileInfo
+    });
+  } catch (error) {
+    console.error('❌ Error uploading KPI image:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error uploading KPI image'
+    });
   }
 });
 
@@ -511,6 +591,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: 'Only image files are allowed for ANEKA GRAFIK uploads.'
+    });
+  }
+
+  if (err.message === 'Only image files are allowed for KPI') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only image files are allowed for KPI uploads.'
     });
   }
 

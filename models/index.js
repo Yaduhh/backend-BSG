@@ -12,6 +12,7 @@ const Pengumuman = require('./Pengumuman');
 const TimMerah = require('./TimMerah');
 const TimBiru = require('./TimBiru');
 const DataAset = require('./DataAset');
+const KPI = require('./KPI');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -83,5 +84,6 @@ module.exports = {
   Pengumuman,
   TimMerah,
   TimBiru,
-  DataAset
+  DataAset,
+  KPI
 }; 

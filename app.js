@@ -46,7 +46,6 @@ const ownerDataBinaLingkunganRoutes = require('./routes/ownerDataBinaLingkungan'
 const adminDataInvestorRoutes = require('./routes/adminDataInvestor');
 const ownerDataInvestorRoutes = require('./routes/ownerDataInvestor');
 const ownerAnekaGrafikRoutes = require('./routes/ownerAnekaGrafik');
-const adminAnekaGrafikRoutes = require('./routes/adminAnekaGrafik');
 const anekaSuratRoutes = require('./routes/anekaSurat');
 
 // Import database config and models

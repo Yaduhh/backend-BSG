@@ -212,11 +212,28 @@ const deleteAnekaGrafik = async (req, res) => {
   }
 };
 
+// Get statistics
+const getStats = async (req, res) => {
+  try {
+    const result = await AnekaGrafik.getStats();
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getStats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getAllAnekaGrafik,
   getAnekaGrafikByCategory,
   getAnekaGrafikById,
   createAnekaGrafik,
   updateAnekaGrafik,
-  deleteAnekaGrafik
+  deleteAnekaGrafik,
+  getStats
 };

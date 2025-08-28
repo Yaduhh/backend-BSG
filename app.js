@@ -33,6 +33,7 @@ const ownerTimMerahBiruRoutes = require('./routes/ownerTimMerahBiru');
 const ownerTrainingRoutes = require('./routes/ownerTraining');
 const adminTrainingRoutes = require('./routes/adminTraining');
 const adminDataAsetRoutes = require('./routes/adminDataAset');
+const ownerDataAsetRoutes = require('./routes/ownerDataAset');
 const adminDataSupplierRoutes = require('./routes/adminDataSupplier');
 const adminMedsosRoutes = require('./routes/adminMedsos');
 const kpiRoutes = require('./routes/kpiRoutes');
@@ -44,6 +45,8 @@ const adminDataBinaLingkunganRoutes = require('./routes/adminDataBinaLingkungan'
 const ownerDataBinaLingkunganRoutes = require('./routes/ownerDataBinaLingkungan');
 const adminDataInvestorRoutes = require('./routes/adminDataInvestor');
 const ownerDataInvestorRoutes = require('./routes/ownerDataInvestor');
+const ownerAnekaGrafikRoutes = require('./routes/ownerAnekaGrafik');
+const adminAnekaGrafikRoutes = require('./routes/adminAnekaGrafik');
 const anekaSuratRoutes = require('./routes/anekaSurat');
 
 // Import database config and models
@@ -88,6 +91,7 @@ app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
 app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
+app.use('/api/owner/data-aset', ownerDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
 app.use('/api/admin/medsos', adminMedsosRoutes);
 app.use('/api/owner/medsos', ownerMedsosRoutes);
@@ -97,6 +101,8 @@ app.use('/api/admin/data-bina-lingkungan', adminDataBinaLingkunganRoutes);
 app.use('/api/owner/data-bina-lingkungan', ownerDataBinaLingkunganRoutes);
 app.use('/api/admin/data-investor', adminDataInvestorRoutes);
 app.use('/api/owner/data-investor', ownerDataInvestorRoutes);
+app.use('/api/owner/aneka-grafik', ownerAnekaGrafikRoutes);
+app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
 app.use('/api/admin/aneka-surat', anekaSuratRoutes);
 app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);

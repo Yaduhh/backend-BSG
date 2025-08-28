@@ -294,12 +294,12 @@ router.get('/rooms/:user_id', async (req, res) => {
         {
           model: User,
           as: 'user1',
-          attributes: ['id', 'nama', 'username', 'email']
+          attributes: ['id', 'nama', 'username', 'email', 'role']
         },
         {
           model: User,
           as: 'user2',
-          attributes: ['id', 'nama', 'username', 'email']
+          attributes: ['id', 'nama', 'username', 'email', 'role']
         }
       ],
       order: [

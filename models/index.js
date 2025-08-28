@@ -93,5 +93,7 @@ module.exports = {
   TimMerah,
   TimBiru,
   DataAset,
-  KPI
-}; 
+  KPI,
+  DataTarget,
+  DataInvestor
+};

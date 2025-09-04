@@ -4,6 +4,11 @@ const { UserDevice } = require('../models');
 // Create a new Expo SDK client
 const expo = new Expo();
 
+// Rate limiting for notifications (prevent spam)
+const notificationRateLimit = new Map();
+const RATE_LIMIT_WINDOW = 5000; // 5 seconds
+const MAX_NOTIFICATIONS_PER_WINDOW = 1;
+
 // Helper function to parse pihak terkait (handle both string JSON and array)
 const parsePihakTerkait = (pihakTerkait) => {
   if (!pihakTerkait) return [];
@@ -1289,6 +1294,129 @@ const sendTaskDeletionNotification = async (taskData, ownerUser, wsService = nul
   }
 };
 
+// Send saran notification to owner
+const sendSaranNotification = async (saranData, adminUser, wsService = null) => {
+  try {
+    const { User, UserDevice } = require('../models');
+    
+    // Rate limiting check
+    const now = Date.now();
+    const adminKey = `saran_${adminUser.id}`;
+    const adminRateLimit = notificationRateLimit.get(adminKey) || { count: 0, resetTime: now + RATE_LIMIT_WINDOW };
+    
+    // Reset counter if window has passed
+    if (now > adminRateLimit.resetTime) {
+      adminRateLimit.count = 0;
+      adminRateLimit.resetTime = now + RATE_LIMIT_WINDOW;
+    }
+    
+    // Check if rate limit exceeded
+    if (adminRateLimit.count >= MAX_NOTIFICATIONS_PER_WINDOW) {
+      console.log(`⚠️ Rate limit exceeded for admin ${adminUser.nama}, skipping saran notification`);
+      return false;
+    }
+    
+    // Increment counter
+    adminRateLimit.count++;
+    notificationRateLimit.set(adminKey, adminRateLimit);
+    
+    // Get saran details
+    const saranTitle = saranData.saran;
+    const saranDescription = saranData.deskripsi_saran;
+    const adminNama = adminUser.nama;
+    
+    // Get all owner users (users with role 'owner')
+    const ownerUsers = await User.findAll({
+      where: { 
+        role: 'owner',
+        status_deleted: false
+      },
+      attributes: ['id', 'nama', 'email']
+    });
+
+    if (ownerUsers.length === 0) {
+      console.log('No owner users found for saran notification');
+      return false;
+    }
+
+    // Create unique notification ID to prevent duplicates
+    const notificationId = `saran_${saranData.id}_${Date.now()}`;
+    
+    // Send single notification to all owners (not per owner)
+    const title = `💡 Saran Baru dari ${adminNama}`;
+    const body = `${saranTitle}${saranDescription ? ` - ${saranDescription}` : ''}`;
+    const data = {
+      type: 'new_saran',
+      saran_id: saranData.id,
+      saran_title: saranTitle,
+      saran_description: saranDescription,
+      admin_id: adminUser.id,
+      admin_name: adminNama,
+      notification_id: notificationId, // Add unique ID
+      timestamp: new Date()
+    };
+
+    // Send single push notification to all owner devices at once
+    const allOwnerDevices = await UserDevice.findAll({
+      where: { 
+        user_id: { [require('sequelize').Op.in]: ownerUsers.map(owner => owner.id) },
+        is_active: true 
+      },
+      attributes: ['expo_token', 'device_name', 'user_id']
+    });
+
+    if (allOwnerDevices.length > 0) {
+      // Send to all devices in one batch
+      const results = await Promise.all(
+        allOwnerDevices.map(device => 
+          sendNotificationToDevice(device.expo_token, title, body, data)
+        )
+      );
+
+      const successCount = results.filter(result => result === true).length;
+      console.log(`📱 Push notification sent to ${successCount}/${allOwnerDevices.length} owner devices`);
+    }
+
+    // Send single WebSocket notification only to online owners
+    if (wsService && wsService.sendNotificationToUser) {
+      try {
+        const notificationData = {
+          type: 'new_saran',
+          saran_id: saranData.id,
+          saran_title: saranTitle,
+          saran_description: saranDescription,
+          admin_id: adminUser.id,
+          admin_name: adminNama,
+          notification_id: notificationId, // Add unique ID
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        // Send WebSocket notification only to owner users (not broadcast to all)
+        for (const owner of ownerUsers) {
+          try {
+            wsService.sendNotificationToUser(owner.id, notificationData);
+          } catch (wsError) {
+            console.error(`WebSocket notification error for owner ${owner.nama}:`, wsError);
+          }
+        }
+        
+        console.log(`🌐 WebSocket notification sent to ${ownerUsers.length} online owners`);
+      } catch (wsError) {
+        console.error('WebSocket notification error:', wsError);
+      }
+    }
+
+    console.log(`✅ Single saran notification sent successfully to ${ownerUsers.length} owners with ID: ${notificationId}`);
+    console.log(`📊 Rate limit status for admin ${adminUser.nama}: ${adminRateLimit.count}/${MAX_NOTIFICATIONS_PER_WINDOW}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending saran notification:', error);
+    return false;
+  }
+};
+
 // Send task priority change notification
 const sendTaskPriorityChangeNotification = async (taskData, ownerUser, oldPriority, wsService = null) => {
   try {
@@ -1691,5 +1819,6 @@ module.exports = {
   sendTaskPriorityChangeNotification,
   sendTaskStatusChangeNotification,
   sendPengumumanNotification,
+  sendSaranNotification,
   checkNotificationReceipts
 }; 

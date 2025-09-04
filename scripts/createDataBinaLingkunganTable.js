@@ -6,7 +6,8 @@ async function createDataBinaLingkunganTable() {
     await sequelize.authenticate();
     console.log('Database connection established.');
 
-    await DataBinaLingkungan.sync({ force: false });
+    // Use alter to apply non-destructive schema changes (e.g., add new columns)
+    await DataBinaLingkungan.sync({ alter: true });
     console.log('Data Bina Lingkungan table created successfully.');
 
     console.log('Table creation completed.');

@@ -3,6 +3,8 @@ const router = express.Router();
 const { sequelize } = require('../config/database');
 const DataBinaLingkungan = require('../models/DataBinaLingkungan');
 const { authenticateToken } = require('../middleware/auth');
+const path = require('path');
+const { uploadMultiple } = require('../middleware/upload');
 
 // Get all data bina lingkungan
 router.get('/', authenticateToken, async (req, res) => {
@@ -85,8 +87,8 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create new data
-router.post('/', authenticateToken, async (req, res) => {
+// Create new data (supports multipart with files under field name 'files')
+router.post('/', authenticateToken, uploadMultiple, async (req, res) => {
   try {
     const { lokasi, jabatan, nama, no_hp, alamat, nominal } = req.body;
 
@@ -97,13 +99,32 @@ router.post('/', authenticateToken, async (req, res) => {
       });
     }
 
+    // Proses lampiran (optional)
+    let lampiran = [];
+    if (req.files && req.files.length > 0) {
+      const uploadsRoot = path.join(__dirname, '../uploads');
+      lampiran = req.files.map((file) => {
+        // Pastikan path relatif sesuai dengan struktur folder baru
+        const relativePath = path.relative(uploadsRoot, file.path).replace(/\\/g, '/');
+        return {
+          originalName: file.originalname,
+          filename: file.filename,
+          path: relativePath,
+          mimetype: file.mimetype,
+          size: file.size,
+          url: `/uploads/${relativePath}` // URL akses publik
+        };
+      });
+    }
+
     const newData = await DataBinaLingkungan.create({
       lokasi,
       jabatan,
       nama,
       no_hp,
       alamat,
-      nominal
+      nominal,
+      lampiran
     });
 
     res.status(201).json({
@@ -120,8 +141,8 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// Update data
-router.put('/:id', authenticateToken, async (req, res) => {
+// Update data (supports multipart with files under field name 'files')
+router.put('/:id', authenticateToken, uploadMultiple, async (req, res) => {
   try {
     const { id } = req.params;
     const { lokasi, jabatan, nama, no_hp, alamat, nominal } = req.body;
@@ -137,13 +158,33 @@ router.put('/:id', authenticateToken, async (req, res) => {
       });
     }
 
+    // Gabungkan lampiran lama + baru jika ada
+    let existingLampiran = Array.isArray(data.lampiran) ? data.lampiran : [];
+    let newLampiran = [];
+    if (req.files && req.files.length > 0) {
+      const uploadsRoot = path.join(__dirname, '../uploads');
+      newLampiran = req.files.map((file) => {
+        // Pastikan path relatif sesuai dengan struktur folder baru
+        const relativePath = path.relative(uploadsRoot, file.path).replace(/\\/g, '/');
+        return {
+          originalName: file.originalname,
+          filename: file.filename,
+          path: relativePath,
+          mimetype: file.mimetype,
+          size: file.size,
+          url: `/uploads/${relativePath}` // URL akses publik
+        };
+      });
+    }
+
     await data.update({
       lokasi,
       jabatan,
       nama,
       no_hp,
       alamat,
-      nominal
+      nominal,
+      lampiran: [...existingLampiran, ...newLampiran]
     });
 
     res.json({

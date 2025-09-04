@@ -32,6 +32,31 @@ const DataBinaLingkungan = sequelize.define('DataBinaLingkungan', {
     type: DataTypes.STRING(50),
     allowNull: false
   },
+  // JSON array berisi objek lampiran: { url, originalName, filename, mimetype, size, path }
+  lampiran: {
+    type: DataTypes.TEXT, // simpan sebagai JSON string
+    allowNull: true,
+    get() {
+      const raw = this.getDataValue('lampiran');
+      if (!raw) return [];
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return [];
+      }
+    },
+    set(val) {
+      if (!val) {
+        this.setDataValue('lampiran', null);
+        return;
+      }
+      try {
+        this.setDataValue('lampiran', JSON.stringify(val));
+      } catch (e) {
+        this.setDataValue('lampiran', null);
+      }
+    }
+  },
   status_deleted: {
     type: DataTypes.BOOLEAN,
     defaultValue: false,

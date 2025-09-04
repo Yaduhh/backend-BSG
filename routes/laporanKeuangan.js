@@ -26,17 +26,38 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 });
 
+// Get statistics - MUST BE BEFORE /:id route
+router.get('/stats/overview', authenticateToken, async (req, res) => {
+    try {
+        const result = await LaporanKeuangan.getStats();
+
+        if (!result.success) {
+            return res.status(500).json({ error: result.error });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error in GET /laporan-keuangan/stats/overview:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Get laporan keuangan by ID
 router.get('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
+        console.log('🔍 GET /laporan-keuangan/:id - Requested ID:', id);
+        console.log('🔍 User:', req.user);
 
         const result = await LaporanKeuangan.getById(id);
+        console.log('🔍 Database result:', result);
 
         if (!result.success) {
+            console.log('❌ Result not successful:', result.error);
             return res.status(404).json({ error: result.error });
         }
 
+        console.log('✅ Sending successful response');
         res.json(result);
     } catch (error) {
         console.error('Error in GET /laporan-keuangan/:id:', error);
@@ -116,22 +137,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error in DELETE /laporan-keuangan/:id:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Get statistics
-router.get('/stats/overview', authenticateToken, async (req, res) => {
-    try {
-        const result = await LaporanKeuangan.getStats();
-
-        if (!result.success) {
-            return res.status(500).json({ error: result.error });
-        }
-
-        res.json(result);
-    } catch (error) {
-        console.error('Error in GET /laporan-keuangan/stats/overview:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

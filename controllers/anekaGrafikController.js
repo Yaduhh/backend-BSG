@@ -1,46 +1,30 @@
-const mysql = require('mysql2/promise');
-const path = require('path');
-
-// Database configuration
-function loadDatabaseConfig() {
-    return {
-        host: 'localhost',
-        user: 'root',
-        password: '',
-        database: 'sistem_bosgil_group',
-        port: 3306
-    };
-}
-
-// Normalize photo URL to store server-relative '/uploads/...' paths in DB
-function normalizePhotoUrl(photoUrl) {
-    if (!photoUrl) return null;
-    if (photoUrl.startsWith('/uploads/')) return photoUrl;
-    return `/uploads/${photoUrl}`;
-}
+const { AnekaGrafik } = require('../models/AnekaGrafik');
 
 // Get all aneka grafik with hierarchical structure
 const getAllAnekaGrafik = async (req, res) => {
-  let connection;
   try {
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
-
     // Get parent categories first
-    const [parentCategories] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE status_deleted = 0 AND parent_id IS NULL ORDER BY name ASC'
-    );
+    const parentCategories = await AnekaGrafik.findAll({
+      where: { 
+        status_deleted: false,
+        parent_id: null 
+      },
+      order: [['name', 'ASC']]
+    });
 
     // Get child items for each parent
     const hierarchicalData = [];
     for (const parent of parentCategories) {
-      const [children] = await connection.execute(
-        'SELECT * FROM aneka_grafik WHERE status_deleted = 0 AND parent_id = ? ORDER BY name ASC',
-        [parent.id]
-      );
+      const children = await AnekaGrafik.findAll({
+        where: { 
+          status_deleted: false,
+          parent_id: parent.id 
+        },
+        order: [['name', 'ASC']]
+      });
 
       hierarchicalData.push({
-        ...parent,
+        ...parent.toJSON(),
         children: children
       });
     }
@@ -55,25 +39,21 @@ const getAllAnekaGrafik = async (req, res) => {
       success: false,
       message: 'Gagal mengambil data aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Get aneka grafik by category
 const getAnekaGrafikByCategory = async (req, res) => {
-  let connection;
   try {
     const { category } = req.params;
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
     
-    const [anekaGrafik] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE category = ? AND status_deleted = 0 ORDER BY created_at DESC',
-      [category]
-    );
+    const anekaGrafik = await AnekaGrafik.findAll({
+      where: { 
+        category: category,
+        status_deleted: false 
+      },
+      order: [['created_at', 'DESC']]
+    });
 
     res.json({
       success: true,
@@ -85,27 +65,22 @@ const getAnekaGrafikByCategory = async (req, res) => {
       success: false,
       message: 'Gagal mengambil data aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Get aneka grafik by ID
 const getAnekaGrafikById = async (req, res) => {
-  let connection;
   try {
     const { id } = req.params;
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
     
-    const [rows] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE id = ? AND status_deleted = 0',
-      [id]
-    );
+    const anekaGrafik = await AnekaGrafik.findOne({
+      where: { 
+        id: id,
+        status_deleted: false 
+      }
+    });
 
-    if (rows.length === 0) {
+    if (!anekaGrafik) {
       return res.status(404).json({
         success: false,
         message: 'Aneka grafik tidak ditemukan'
@@ -114,7 +89,7 @@ const getAnekaGrafikById = async (req, res) => {
 
     res.json({
       success: true,
-      data: rows[0]
+      data: anekaGrafik
     });
   } catch (error) {
     console.error('Error getting aneka grafik by ID:', error);
@@ -122,20 +97,13 @@ const getAnekaGrafikById = async (req, res) => {
       success: false,
       message: 'Gagal mengambil data aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Create new aneka grafik
 const createAnekaGrafik = async (req, res) => {
-  let connection;
   try {
     const { name, category, photo_url, parent_id } = req.body;
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
 
     // Validation
     if (!name || !category) {
@@ -145,20 +113,17 @@ const createAnekaGrafik = async (req, res) => {
       });
     }
 
-    const normalizedPhoto = normalizePhotoUrl(photo_url);
-    const [result] = await connection.execute(
-      'INSERT INTO aneka_grafik (name, category, photo_url, parent_id, status_deleted, created_at, updated_at) VALUES (?, ?, ?, ?, 0, NOW(), NOW())',
-      [name, category, normalizedPhoto, parent_id || null]
-    );
-
-    const [newRecord] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE id = ?',
-      [result.insertId]
-    );
+    const anekaGrafik = await AnekaGrafik.create({
+      name,
+      category,
+      photo_url: photo_url || null,
+      parent_id: parent_id || null,
+      status_deleted: false
+    });
 
     res.status(201).json({
       success: true,
-      data: newRecord[0],
+      data: anekaGrafik,
       message: 'Aneka grafik berhasil dibuat'
     });
   } catch (error) {
@@ -167,29 +132,23 @@ const createAnekaGrafik = async (req, res) => {
       success: false,
       message: 'Gagal membuat aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Update aneka grafik
 const updateAnekaGrafik = async (req, res) => {
-  let connection;
   try {
     const { id } = req.params;
     const { name, category, photo_url } = req.body;
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
 
-    // Check if exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE id = ? AND status_deleted = 0',
-      [id]
-    );
+    const anekaGrafik = await AnekaGrafik.findOne({
+      where: { 
+        id: id,
+        status_deleted: false 
+      }
+    });
 
-    if (existing.length === 0) {
+    if (!anekaGrafik) {
       return res.status(404).json({
         success: false,
         message: 'Aneka grafik tidak ditemukan'
@@ -197,20 +156,15 @@ const updateAnekaGrafik = async (req, res) => {
     }
 
     // Update fields
-    const normalizedPhoto = normalizePhotoUrl(photo_url);
-    await connection.execute(
-      'UPDATE aneka_grafik SET name = ?, category = ?, photo_url = ?, updated_at = NOW() WHERE id = ?',
-      [name, category, normalizedPhoto, id]
-    );
+    if (name) anekaGrafik.name = name;
+    if (category) anekaGrafik.category = category;
+    if (photo_url !== undefined) anekaGrafik.photo_url = photo_url;
 
-    const [updatedRecord] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE id = ?',
-      [id]
-    );
+    await anekaGrafik.save();
 
     res.json({
       success: true,
-      data: updatedRecord[0],
+      data: anekaGrafik,
       message: 'Aneka grafik berhasil diupdate'
     });
   } catch (error) {
@@ -219,28 +173,22 @@ const updateAnekaGrafik = async (req, res) => {
       success: false,
       message: 'Gagal mengupdate aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Delete aneka grafik (soft delete)
 const deleteAnekaGrafik = async (req, res) => {
-  let connection;
   try {
     const { id } = req.params;
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
 
-    // Check if exists
-    const [existing] = await connection.execute(
-      'SELECT * FROM aneka_grafik WHERE id = ? AND status_deleted = 0',
-      [id]
-    );
+    const anekaGrafik = await AnekaGrafik.findOne({
+      where: { 
+        id: id,
+        status_deleted: false 
+      }
+    });
 
-    if (existing.length === 0) {
+    if (!anekaGrafik) {
       return res.status(404).json({
         success: false,
         message: 'Aneka grafik tidak ditemukan'
@@ -248,10 +196,8 @@ const deleteAnekaGrafik = async (req, res) => {
     }
 
     // Soft delete
-    await connection.execute(
-      'UPDATE aneka_grafik SET status_deleted = 1, updated_at = NOW() WHERE id = ?',
-      [id]
-    );
+    anekaGrafik.status_deleted = true;
+    await anekaGrafik.save();
 
     res.json({
       success: true,
@@ -263,58 +209,22 @@ const deleteAnekaGrafik = async (req, res) => {
       success: false,
       message: 'Gagal menghapus aneka grafik'
     });
-  } finally {
-    if (connection) {
-      await connection.end();
-    }
   }
 };
 
 // Get statistics
 const getStats = async (req, res) => {
-  let connection;
   try {
-    const dbConfig = loadDatabaseConfig();
-    connection = await mysql.createConnection(dbConfig);
+    const result = await AnekaGrafik.getStats();
 
-    // Get total count
-    const [totalResult] = await connection.execute(
-      'SELECT COUNT(*) as total FROM aneka_grafik WHERE status_deleted = 0'
-    );
-    
-    // Get count by category
-    const [categoryResult] = await connection.execute(
-      'SELECT category, COUNT(*) as count FROM aneka_grafik WHERE status_deleted = 0 GROUP BY category'
-    );
-
-    // Get recent items
-    const [recentResult] = await connection.execute(
-      'SELECT id, name, category, created_at FROM aneka_grafik WHERE status_deleted = 0 ORDER BY created_at DESC LIMIT 5'
-    );
-
-    const stats = {
-      total: totalResult[0].total,
-      byCategory: categoryResult.reduce((acc, item) => {
-        acc[item.category] = item.count;
-        return acc;
-      }, {}),
-      recent: recentResult
-    };
-
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('Error getting aneka grafik stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal mengambil statistik aneka grafik'
-    });
-  } finally {
-    if (connection) {
-      await connection.end();
+    if (!result.success) {
+      return res.status(500).json({ error: result.error });
     }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error in getStats:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 };
 

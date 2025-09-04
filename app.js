@@ -37,6 +37,7 @@ const ownerDataAsetRoutes = require('./routes/ownerDataAset');
 const adminDataSupplierRoutes = require('./routes/adminDataSupplier');
 const adminMedsosRoutes = require('./routes/adminMedsos');
 const kpiRoutes = require('./routes/kpiRoutes');
+const adminAnekaGrafikRoutes = require('./routes/adminAnekaGrafik');
 const ownerMedsosRoutes = require('./routes/ownerMedsos');
 const adminDataTargetRoutes = require('./routes/adminDataTarget');
 const ownerDataTargetRoutes = require('./routes/ownerDataTarget');
@@ -45,8 +46,9 @@ const ownerDataBinaLingkunganRoutes = require('./routes/ownerDataBinaLingkungan'
 const adminDataInvestorRoutes = require('./routes/adminDataInvestor');
 const ownerDataInvestorRoutes = require('./routes/ownerDataInvestor');
 const ownerAnekaGrafikRoutes = require('./routes/ownerAnekaGrafik');
-const adminAnekaGrafikRoutes = require('./routes/adminAnekaGrafik');
 const anekaSuratRoutes = require('./routes/anekaSurat');
+const saranRoutes = require('./routes/saranRoutes');
+const adminDataSewaRoutes = require('./routes/adminDataSewa');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -103,6 +105,9 @@ app.use('/api/owner/data-investor', ownerDataInvestorRoutes);
 app.use('/api/owner/aneka-grafik', ownerAnekaGrafikRoutes);
 app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
 app.use('/api/admin/aneka-surat', anekaSuratRoutes);
+app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
+app.use('/api/saran', saranRoutes);
+app.use('/api/admin/data-sewa', adminDataSewaRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/kpi', kpiRoutes);
 app.use('/api/health', require('./routes/health'));

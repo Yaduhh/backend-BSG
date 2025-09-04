@@ -231,16 +231,26 @@ router.delete('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Get unique locations
+// Get unique locations with latest timestamp
 router.get('/locations/list', authenticateToken, async (req, res) => {
   try {
     const locations = await DataBinaLingkungan.findAll({
       where: { status_deleted: false },
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('lokasi')), 'lokasi']],
+      attributes: [
+        'lokasi',
+        [sequelize.fn('MAX', sequelize.col('updated_at')), 'latest_updated_at'],
+        [sequelize.fn('MAX', sequelize.col('created_at')), 'latest_created_at']
+      ],
+      group: ['lokasi'],
       raw: true
     });
 
-    const locationList = locations.map(item => item.lokasi);
+    // Transform data to include both location and latest timestamp
+    const locationList = locations.map(item => ({
+      lokasi: item.lokasi,
+      latest_updated_at: item.latest_updated_at,
+      latest_created_at: item.latest_created_at
+    }));
 
     res.json({
       success: true,

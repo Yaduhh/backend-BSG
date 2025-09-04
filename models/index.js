@@ -96,4 +96,4 @@ module.exports = {
   KPI,
   DataTarget,
   DataInvestor
-}; 
+};

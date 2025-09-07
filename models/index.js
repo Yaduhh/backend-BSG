@@ -15,6 +15,7 @@ const DataAset = require('./DataAset');
 const KPI = require('./KPI');
 const DataTarget = require('./DataTarget');
 const DataInvestor = require('./DataInvestor');
+const JadwalPembayaran = require('./JadwalPembayaran');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -78,6 +79,10 @@ ChatGroupMember.belongsTo(ChatGroup, { foreignKey: 'group_id', targetKey: 'group
 User.hasMany(ChatGroupMember, { foreignKey: 'user_id', as: 'groupMemberships' });
 ChatGroupMember.belongsTo(User, { foreignKey: 'user_id', as: 'member' });
 
+// JadwalPembayaran associations
+User.hasMany(JadwalPembayaran, { foreignKey: 'pic_id', as: 'jadwalPembayaran' });
+JadwalPembayaran.belongsTo(User, { foreignKey: 'pic_id', as: 'pic' });
+
 module.exports = {
   User,
   UserDevice,
@@ -95,5 +100,6 @@ module.exports = {
   DataAset,
   KPI,
   DataTarget,
-  DataInvestor
+  DataInvestor,
+  JadwalPembayaran
 };

@@ -49,6 +49,7 @@ const ownerAnekaGrafikRoutes = require('./routes/ownerAnekaGrafik');
 const anekaSuratRoutes = require('./routes/anekaSurat');
 const saranRoutes = require('./routes/saranRoutes');
 const adminDataSewaRoutes = require('./routes/adminDataSewa');
+const mediaSosialRoutes = require('./routes/mediaSosial');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -108,6 +109,7 @@ app.use('/api/admin/aneka-surat', anekaSuratRoutes);
 app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
 app.use('/api/saran', saranRoutes);
 app.use('/api/admin/data-sewa', adminDataSewaRoutes);
+app.use('/api/media-sosial', mediaSosialRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/kpi', kpiRoutes);
 app.use('/api/health', require('./routes/health'));

@@ -171,6 +171,8 @@ class DataInvestor {
         kontak_darurat,
         nama_pasangan,
         nama_anak,
+        ahli_waris,
+        lampiran,
         investasi_di_outlet,
         persentase_bagi_hasil,
         tipe_data,
@@ -181,8 +183,9 @@ class DataInvestor {
         INSERT INTO data_investor (
           outlet, nama_investor, ttl_investor, no_hp, alamat, 
           tanggal_join, kontak_darurat, nama_pasangan, nama_anak, 
+          ahli_waris, lampiran, 
           investasi_di_outlet, persentase_bagi_hasil, tipe_data, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [
         outlet,
         nama_investor,
@@ -193,6 +196,8 @@ class DataInvestor {
         kontak_darurat,
         nama_pasangan,
         nama_anak,
+        ahli_waris || null,
+        typeof lampiran === 'string' ? lampiran : (lampiran ? JSON.stringify(lampiran) : null),
         investasi_di_outlet,
         persentase_bagi_hasil,
         tipe_data || 'outlet',
@@ -219,6 +224,8 @@ class DataInvestor {
         kontak_darurat,
         nama_pasangan,
         nama_anak,
+        ahli_waris,
+        lampiran,
         investasi_di_outlet,
         persentase_bagi_hasil,
         tipe_data
@@ -228,7 +235,7 @@ class DataInvestor {
         UPDATE data_investor SET
           outlet = ?, nama_investor = ?, ttl_investor = ?, no_hp = ?, 
           alamat = ?, tanggal_join = ?, kontak_darurat = ?, nama_pasangan = ?, 
-          nama_anak = ?, investasi_di_outlet = ?, persentase_bagi_hasil = ?, tipe_data = ?
+          nama_anak = ?, ahli_waris = ?, lampiran = ?, investasi_di_outlet = ?, persentase_bagi_hasil = ?, tipe_data = ?
         WHERE id = ?
       `, [
         outlet,
@@ -240,6 +247,8 @@ class DataInvestor {
         kontak_darurat,
         nama_pasangan,
         nama_anak,
+        ahli_waris || null,
+        typeof lampiran === 'string' ? lampiran : (lampiran ? JSON.stringify(lampiran) : null),
         investasi_di_outlet,
         persentase_bagi_hasil,
         tipe_data || 'outlet',
@@ -260,6 +269,41 @@ class DataInvestor {
         UPDATE data_investor SET status_deleted = 1 WHERE id = ?
       `, [id]);
       
+      return result.affectedRows > 0;
+    } finally {
+      await connection.end();
+    }
+  }
+
+  static async getLampiran(id) {
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      const [rows] = await connection.execute(
+        'SELECT lampiran FROM data_investor WHERE id = ? AND status_deleted = 0',
+        [id]
+      );
+      if (rows.length === 0) return [];
+      const raw = rows[0].lampiran;
+      if (!raw) return [];
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (e) {
+        return [];
+      }
+    } finally {
+      await connection.end();
+    }
+  }
+
+  static async setLampiranArray(id, arr) {
+    const connection = await mysql.createConnection(dbConfig);
+    try {
+      const json = JSON.stringify(arr || []);
+      const [result] = await connection.execute(
+        'UPDATE data_investor SET lampiran = ? WHERE id = ? AND status_deleted = 0',
+        [json, id]
+      );
       return result.affectedRows > 0;
     } finally {
       await connection.end();

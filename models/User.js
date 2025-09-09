@@ -124,6 +124,7 @@ User.associate = (models) => {
     foreignKey: 'sender_id',
     as: 'messages'
   });
+
 };
 
 module.exports = User; 

@@ -36,24 +36,8 @@ const JadwalPembayaran = sequelize.define('JadwalPembayaran', {
     ),
     allowNull: false
   },
-  pic_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true, // Bisa kosong jika belum ada PIC
-    references: {
-      model: 'users',
-      key: 'id'
-    }
-  },
-  tanggal_update: {
-    type: DataTypes.DATEONLY,
-    allowNull: true
-  },
   tanggal_jatuh_tempo: {
     type: DataTypes.DATEONLY,
-    allowNull: true
-  },
-  keterangan: {
-    type: DataTypes.TEXT,
     allowNull: true
   },
   // Detail fields untuk sewa outlet
@@ -102,13 +86,5 @@ const JadwalPembayaran = sequelize.define('JadwalPembayaran', {
   updatedAt: 'updated_at'
 });
 
-// Association function
-JadwalPembayaran.associate = (models) => {
-  JadwalPembayaran.belongsTo(models.User, {
-    foreignKey: 'pic_id',
-    as: 'pic',
-    onDelete: 'SET NULL'
-  });
-};
 
 module.exports = JadwalPembayaran;

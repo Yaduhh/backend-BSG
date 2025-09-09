@@ -1,4 +1,4 @@
-const { JadwalPembayaran, User } = require('../models');
+const { JadwalPembayaran, User, PicKategori } = require('../models');
 const { Op } = require('sequelize');
 
 // Get all jadwal pembayaran (Owner bisa lihat semua, Admin hanya yang mereka handle)
@@ -7,20 +7,30 @@ const getAllJadwalPembayaran = async (req, res) => {
     const { user } = req;
     let whereCondition = { status_deleted: false };
 
-    // Jika bukan owner, hanya tampilkan yang mereka handle
+    // Jika bukan owner, hanya tampilkan kategori yang mereka handle
+    let allowedKategori = [];
     if (user.role !== 'owner') {
-      whereCondition.pic_id = user.id;
+      const picKategori = await PicKategori.findAll({
+        where: { 
+          pic_id: user.id,
+          status_deleted: false 
+        },
+        attributes: ['kategori']
+      });
+      allowedKategori = picKategori.map(pk => pk.kategori);
+      
+      if (allowedKategori.length === 0) {
+        return res.json({
+          success: true,
+          data: []
+        });
+      }
+      
+      whereCondition.kategori = { [Op.in]: allowedKategori };
     }
 
     const jadwalPembayaran = await JadwalPembayaran.findAll({
       where: whereCondition,
-      include: [
-        {
-          model: User,
-          as: 'pic',
-          attributes: ['id', 'nama', 'username']
-        }
-      ],
       order: [['kategori', 'ASC'], ['nama_item', 'ASC']]
     });
 
@@ -48,13 +58,6 @@ const getJadwalPembayaranById = async (req, res) => {
         id: id,
         status_deleted: false 
       },
-      include: [
-        {
-          model: User,
-          as: 'pic',
-          attributes: ['id', 'nama', 'username']
-        }
-      ]
     });
 
     if (!jadwalPembayaran) {
@@ -64,12 +67,22 @@ const getJadwalPembayaranById = async (req, res) => {
       });
     }
 
-    // Cek permission: Owner bisa akses semua, Admin hanya yang mereka handle
-    if (user.role !== 'owner' && jadwalPembayaran.pic_id !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Anda tidak memiliki akses ke jadwal pembayaran ini'
+    // Cek permission: Owner bisa akses semua, Admin hanya yang mereka handle berdasarkan kategori
+    if (user.role !== 'owner') {
+      const picKategori = await PicKategori.findOne({
+        where: { 
+          kategori: jadwalPembayaran.kategori,
+          pic_id: user.id,
+          status_deleted: false 
+        }
       });
+      
+      if (!picKategori) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki akses ke jadwal pembayaran ini'
+        });
+      }
     }
 
     res.json({
@@ -92,10 +105,7 @@ const createJadwalPembayaran = async (req, res) => {
     const { 
       nama_item, 
       kategori, 
-      pic_id, 
-      tanggal_update, 
-      tanggal_jatuh_tempo, 
-      keterangan,
+      tanggal_jatuh_tempo,
       outlet,
       sewa,
       pemilik_sewa,
@@ -113,27 +123,28 @@ const createJadwalPembayaran = async (req, res) => {
       });
     }
 
-    // Jika bukan owner, hanya bisa assign ke diri sendiri
-    let finalPicId = pic_id;
-    if (user.role !== 'owner' && pic_id && pic_id !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Anda hanya bisa assign PIC ke diri sendiri'
+    // Validasi kategori untuk admin - hanya bisa create untuk kategori yang mereka handle
+    if (user.role !== 'owner') {
+      const picKategori = await PicKategori.findOne({
+        where: { 
+          kategori: kategori,
+          pic_id: user.id,
+          status_deleted: false 
+        }
       });
-    }
-
-    // Jika bukan owner dan tidak ada pic_id, assign ke diri sendiri
-    if (user.role !== 'owner' && !pic_id) {
-      finalPicId = user.id;
+      
+      if (!picKategori) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki akses untuk membuat item di kategori ini'
+        });
+      }
     }
 
     const jadwalPembayaran = await JadwalPembayaran.create({
       nama_item,
       kategori,
-      pic_id: finalPicId,
-      tanggal_update,
       tanggal_jatuh_tempo,
-      keterangan,
       outlet,
       sewa,
       pemilik_sewa,
@@ -143,16 +154,8 @@ const createJadwalPembayaran = async (req, res) => {
       tahun
     });
 
-    // Ambil data dengan include PIC
-    const jadwalPembayaranWithPic = await JadwalPembayaran.findByPk(jadwalPembayaran.id, {
-      include: [
-        {
-          model: User,
-          as: 'pic',
-          attributes: ['id', 'nama', 'username']
-        }
-      ]
-    });
+    // Ambil data yang baru dibuat
+    const jadwalPembayaranWithPic = await JadwalPembayaran.findByPk(jadwalPembayaran.id);
 
     res.status(201).json({
       success: true,
@@ -176,10 +179,7 @@ const updateJadwalPembayaran = async (req, res) => {
     const { 
       nama_item, 
       kategori, 
-      pic_id, 
-      tanggal_update, 
-      tanggal_jatuh_tempo, 
-      keterangan,
+      tanggal_jatuh_tempo,
       outlet,
       sewa,
       pemilik_sewa,
@@ -203,31 +203,29 @@ const updateJadwalPembayaran = async (req, res) => {
       });
     }
 
-    // Cek permission: Owner bisa edit semua, Admin hanya yang mereka handle
-    if (user.role !== 'owner' && jadwalPembayaran.pic_id !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Anda tidak memiliki akses untuk mengedit jadwal pembayaran ini'
+    // Cek permission: Owner bisa edit semua, Admin hanya yang mereka handle berdasarkan kategori
+    if (user.role !== 'owner') {
+      const picKategori = await PicKategori.findOne({
+        where: { 
+          kategori: jadwalPembayaran.kategori,
+          pic_id: user.id,
+          status_deleted: false 
+        }
       });
-    }
-
-    // Jika bukan owner, hanya bisa assign ke diri sendiri
-    let finalPicId = pic_id;
-    if (user.role !== 'owner' && pic_id && pic_id !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Anda hanya bisa assign PIC ke diri sendiri'
-      });
+      
+      if (!picKategori) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki akses untuk mengedit jadwal pembayaran ini'
+        });
+      }
     }
 
     // Update data
     await jadwalPembayaran.update({
       nama_item: nama_item || jadwalPembayaran.nama_item,
       kategori: kategori || jadwalPembayaran.kategori,
-      pic_id: finalPicId !== undefined ? finalPicId : jadwalPembayaran.pic_id,
-      tanggal_update: tanggal_update || jadwalPembayaran.tanggal_update,
       tanggal_jatuh_tempo: tanggal_jatuh_tempo || jadwalPembayaran.tanggal_jatuh_tempo,
-      keterangan: keterangan !== undefined ? keterangan : jadwalPembayaran.keterangan,
       outlet: outlet !== undefined ? outlet : jadwalPembayaran.outlet,
       sewa: sewa !== undefined ? sewa : jadwalPembayaran.sewa,
       pemilik_sewa: pemilik_sewa !== undefined ? pemilik_sewa : jadwalPembayaran.pemilik_sewa,
@@ -237,16 +235,8 @@ const updateJadwalPembayaran = async (req, res) => {
       tahun: tahun !== undefined ? tahun : jadwalPembayaran.tahun
     });
 
-    // Ambil data terbaru dengan include PIC
-    const updatedJadwalPembayaran = await JadwalPembayaran.findByPk(id, {
-      include: [
-        {
-          model: User,
-          as: 'pic',
-          attributes: ['id', 'nama', 'username']
-        }
-      ]
-    });
+    // Ambil data terbaru
+    const updatedJadwalPembayaran = await JadwalPembayaran.findByPk(id);
 
     res.json({
       success: true,
@@ -282,12 +272,22 @@ const deleteJadwalPembayaran = async (req, res) => {
       });
     }
 
-    // Cek permission: Owner bisa delete semua, Admin hanya yang mereka handle
-    if (user.role !== 'owner' && jadwalPembayaran.pic_id !== user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Anda tidak memiliki akses untuk menghapus jadwal pembayaran ini'
+    // Cek permission: Owner bisa delete semua, Admin hanya yang mereka handle berdasarkan kategori
+    if (user.role !== 'owner') {
+      const picKategori = await PicKategori.findOne({
+        where: { 
+          kategori: jadwalPembayaran.kategori,
+          pic_id: user.id,
+          status_deleted: false 
+        }
       });
+      
+      if (!picKategori) {
+        return res.status(403).json({
+          success: false,
+          message: 'Anda tidak memiliki akses untuk menghapus jadwal pembayaran ini'
+        });
+      }
     }
 
     // Soft delete

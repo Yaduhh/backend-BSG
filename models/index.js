@@ -16,6 +16,10 @@ const KPI = require('./KPI');
 const DataTarget = require('./DataTarget');
 const DataInvestor = require('./DataInvestor');
 const JadwalPembayaran = require('./JadwalPembayaran');
+const PicKategori = require('./PicKategori');
+const SdmDivisi = require('./SdmDivisi');
+const SdmJabatan = require('./SdmJabatan');
+const SdmData = require('./SdmData');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -79,9 +83,39 @@ ChatGroupMember.belongsTo(ChatGroup, { foreignKey: 'group_id', targetKey: 'group
 User.hasMany(ChatGroupMember, { foreignKey: 'user_id', as: 'groupMemberships' });
 ChatGroupMember.belongsTo(User, { foreignKey: 'user_id', as: 'member' });
 
-// JadwalPembayaran associations
-User.hasMany(JadwalPembayaran, { foreignKey: 'pic_id', as: 'jadwalPembayaran' });
-JadwalPembayaran.belongsTo(User, { foreignKey: 'pic_id', as: 'pic' });
+// PicKategori associations
+User.hasMany(PicKategori, { foreignKey: 'pic_id', as: 'picKategori' });
+PicKategori.belongsTo(User, { foreignKey: 'pic_id', as: 'pic' });
+
+// SDM associations
+User.hasMany(SdmDivisi, { foreignKey: 'created_by', as: 'sdmDivisiCreated' });
+User.hasMany(SdmDivisi, { foreignKey: 'updated_by', as: 'sdmDivisiUpdated' });
+User.hasMany(SdmDivisi, { foreignKey: 'deleted_by', as: 'sdmDivisiDeleted' });
+SdmDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SdmDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+SdmDivisi.belongsTo(User, { foreignKey: 'deleted_by', as: 'deleter' });
+
+User.hasMany(SdmJabatan, { foreignKey: 'created_by', as: 'sdmJabatanCreated' });
+User.hasMany(SdmJabatan, { foreignKey: 'updated_by', as: 'sdmJabatanUpdated' });
+User.hasMany(SdmJabatan, { foreignKey: 'deleted_by', as: 'sdmJabatanDeleted' });
+SdmJabatan.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SdmJabatan.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+SdmJabatan.belongsTo(User, { foreignKey: 'deleted_by', as: 'deleter' });
+
+User.hasMany(SdmData, { foreignKey: 'created_by', as: 'sdmDataCreated' });
+User.hasMany(SdmData, { foreignKey: 'updated_by', as: 'sdmDataUpdated' });
+User.hasMany(SdmData, { foreignKey: 'deleted_by', as: 'sdmDataDeleted' });
+User.hasMany(SdmData, { foreignKey: 'user_id', as: 'sdmDataUser' });
+SdmData.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SdmData.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+SdmData.belongsTo(User, { foreignKey: 'deleted_by', as: 'deleter' });
+SdmData.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+SdmDivisi.hasMany(SdmJabatan, { foreignKey: 'divisi_id', as: 'jabatans' });
+SdmJabatan.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
+
+SdmJabatan.hasMany(SdmData, { foreignKey: 'jabatan_id', as: 'employees' });
+SdmData.belongsTo(SdmJabatan, { foreignKey: 'jabatan_id', as: 'jabatan' });
 
 module.exports = {
   User,
@@ -101,5 +135,9 @@ module.exports = {
   KPI,
   DataTarget,
   DataInvestor,
-  JadwalPembayaran
+  JadwalPembayaran,
+  PicKategori,
+  SdmDivisi,
+  SdmJabatan,
+  SdmData
 };

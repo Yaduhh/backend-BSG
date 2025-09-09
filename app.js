@@ -51,6 +51,8 @@ const saranRoutes = require('./routes/saranRoutes');
 const adminDataSewaRoutes = require('./routes/adminDataSewa');
 const mediaSosialRoutes = require('./routes/mediaSosial');
 const jadwalPembayaranRoutes = require('./routes/jadwalPembayaran');
+const picKategoriRoutes = require('./routes/picKategori');
+const adminSdmRoutes = require('./routes/adminSdm');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -93,6 +95,7 @@ app.use('/api/admin', adminProfileRoutes);
 app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
 app.use('/api/admin/training', adminTrainingRoutes);
+app.use('/api/admin/sdm', adminSdmRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/owner/data-aset', ownerDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
@@ -111,6 +114,7 @@ app.use('/api/admin/aneka-grafik', adminAnekaGrafikRoutes);
 app.use('/api/saran', saranRoutes);
 app.use('/api/admin/data-sewa', adminDataSewaRoutes);
 app.use('/api/jadwal-pembayaran', jadwalPembayaranRoutes);
+app.use('/api/pic-kategori', picKategoriRoutes);
 app.use('/api/media-sosial', mediaSosialRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/kpi', kpiRoutes);

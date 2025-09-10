@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { DataTarget, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
-const { Op, fn, col } = require('sequelize');
+const { Op, fn, col, literal, Sequelize } = require('sequelize');
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
@@ -18,7 +18,26 @@ const adminOnly = (req, res, next) => {
   next();
 };
 
-// GET /api/admin/data-target - Ambil semua data target dengan pagination
+// GET /api/admin/data-target/years - Ambil daftar tahun yang tersedia (berdasarkan created_at)
+router.get('/years', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const rows = await DataTarget.findAll({
+      attributes: [[fn('YEAR', col('created_at')), 'year']],
+      where: { status_deleted: false },
+      group: [fn('YEAR', col('created_at'))],
+      order: [[fn('YEAR', col('created_at')), 'DESC']]
+    });
+
+    const years = rows.map(r => ({ year: parseInt(r.get('year')) })).filter(y => !isNaN(y.year));
+
+    res.json({ success: true, data: years });
+  } catch (error) {
+    console.error('Error fetching years for data target:', error);
+    res.status(500).json({ success: false, message: 'Internal server error', error: error.message });
+  }
+});
+
+// GET /api/admin/data-target - Ambil semua data target dengan pagination (mendukung filter tahun)
 router.get('/', authenticateToken, adminOnly, async (req, res) => {
   try {
     const { 
@@ -26,7 +45,8 @@ router.get('/', authenticateToken, adminOnly, async (req, res) => {
       limit = 50, 
       search, 
       sortBy = 'created_at',
-      sortOrder = 'DESC'
+      sortOrder = 'DESC',
+      year
     } = req.query;
     
     const offset = (page - 1) * limit;
@@ -42,6 +62,16 @@ router.get('/', authenticateToken, adminOnly, async (req, res) => {
       whereClause[Op.or] = [
         { nama_target: { [Op.like]: searchTerm } }
       ];
+    }
+
+    // Tambah filter tahun jika dikirim (berdasarkan created_at)
+    if (year) {
+      const y = parseInt(year, 10);
+      if (!isNaN(y)) {
+        // Use Op.and with a Sequelize.where condition on YEAR(created_at)
+        const yearCondition = Sequelize.where(fn('YEAR', col('DataTarget.created_at')), y);
+        whereClause[Op.and] = [ ...(whereClause[Op.and] || []), yearCondition ];
+      }
     }
 
     const dataTarget = await DataTarget.findAndCountAll({
@@ -64,11 +94,9 @@ router.get('/', authenticateToken, adminOnly, async (req, res) => {
     });
 
     // Get statistics
-    const totalTarget = await DataTarget.count({ where: { status_deleted: false } });
+    const totalTarget = await DataTarget.count({ where: whereClause });
     const totalNominal = await DataTarget.sum('target_nominal', {
-      where: { 
-        status_deleted: false
-      }
+      where: whereClause
     });
 
     res.json({

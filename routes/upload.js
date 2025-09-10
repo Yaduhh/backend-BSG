@@ -26,6 +26,27 @@ const poskasStorage = multer.diskStorage({
   },
 });
 
+// Configure storage for TARGET images
+const targetStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, "../uploads");
+    const targetDir = path.join(uploadsDir, "target");
+
+    // Create target directory if it doesn't exist
+    if (!require("fs").existsSync(targetDir)) {
+      require("fs").mkdirSync(targetDir, { recursive: true });
+    }
+
+    cb(null, targetDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, "target-" + uniqueSuffix + ext);
+  },
+});
+
 // Configure storage for MEDIA SOSIAL images
 const mediaSosialStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -143,6 +164,22 @@ const omsetHarianUpload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit for OMSET HARIAN images
     files: 50, // Maximum 50 images per OMSET HARIAN (increased from 5)
+  },
+});
+
+// Configure multer for TARGET uploads
+const targetUpload = multer({
+  storage: targetStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for TARGET'), false);
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB per image
+    files: 50,
   },
 });
 
@@ -452,6 +489,48 @@ router.post("/poskas", authenticateToken, (req, res, next) => {
   });
 });
 
+// Upload TARGET images
+router.post("/target", authenticateToken, (req, res, next) => {
+  targetUpload.array("images", 50)(req, res, (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(400).json({ success: false, message: "File too large. Maximum size is 10MB per image." });
+      }
+      if (err.code === "LIMIT_FILE_COUNT") {
+        return res.status(400).json({ success: false, message: "Too many files. Maximum is 50 images per TARGET." });
+      }
+      if (err.code === "LIMIT_UNEXPECTED_FILE") {
+        return res.status(400).json({ success: false, message: 'Invalid field name. Use "images" field for uploading.' });
+      }
+      return res.status(400).json({ success: false, message: "Upload error: " + err.message });
+    } else if (err) {
+      return res.status(400).json({ success: false, message: err.message || "Only image files are allowed for TARGET uploads." });
+    }
+
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ success: false, message: "No images uploaded" });
+      }
+
+      const uploadedFiles = req.files.map((file) => {
+        const relativePath = path.relative(path.join(__dirname, "../uploads"), file.path);
+        return {
+          originalName: file.originalname,
+          filename: file.filename,
+          path: relativePath.replace(/\\/g, "/"),
+          mimetype: file.mimetype,
+          size: file.size,
+          url: `/uploads/${relativePath.replace(/\\/g, "/")}`,
+        };
+      });
+
+      res.json({ success: true, message: "TARGET images uploaded successfully", data: uploadedFiles });
+    } catch (error) {
+      res.status(500).json({ success: false, message: "Error uploading TARGET images" });
+    }
+  });
+});
+
 // Upload OMSET HARIAN images
 router.post("/omset-harian", authenticateToken, (req, res, next) => {
   omsetHarianUpload.array("images", 50)(req, res, (err) => {
@@ -611,6 +690,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: "Only image files are allowed for MEDIA SOSIAL uploads.",
+    });
+  }
+
+  if (err.message === "Only image files are allowed for TARGET") {
+    return res.status(400).json({
+      success: false,
+      message: "Only image files are allowed for TARGET uploads.",
     });
   }
 

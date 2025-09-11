@@ -6,13 +6,14 @@ const { authenticateToken } = require('../middleware/auth');
 // Get all laporan keuangan with pagination and filters
 router.get('/', authenticateToken, async (req, res) => {
     try {
-        const { page = 1, limit = 10, search = '', date = '' } = req.query;
+        const { page = 1, limit = 10, search = '', date = '', month = '' } = req.query;
 
         const result = await LaporanKeuangan.getAll(
             parseInt(page),
             parseInt(limit),
             search,
-            date
+            date,
+            month
         );
 
         if (!result.success) {
@@ -38,6 +39,22 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
         res.json(result);
     } catch (error) {
         console.error('Error in GET /laporan-keuangan/stats/overview:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get available months (folder-like view)
+router.get('/months', authenticateToken, async (req, res) => {
+    try {
+        const result = await LaporanKeuangan.getAvailableMonths();
+
+        if (!result.success) {
+            return res.status(500).json({ error: result.error });
+        }
+
+        res.json(result);
+    } catch (error) {
+        console.error('Error in GET /laporan-keuangan/months:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -141,4 +158,4 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     }
 });
 
-module.exports = router; 
+module.exports = router;

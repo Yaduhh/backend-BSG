@@ -7,7 +7,7 @@ class LaporanKeuangan {
         return await getConnection();
     }
 
-    static async getAll(page = 1, limit = 10, search = '', dateFilter = '') {
+    static async getAll(page = 1, limit = 10, search = '', dateFilter = '', monthFilter = '') {
         let connection;
         try {
             connection = await this.getConnection();
@@ -20,7 +20,18 @@ class LaporanKeuangan {
                 params.push(`%${search}%`, `%${search}%`);
             }
 
-            if (dateFilter) {
+            // Prioritaskan monthFilter jika diisi (format: YYYY-MM)
+            if (monthFilter) {
+                // Validasi sederhana format YYYY-MM
+                const match = /^([0-9]{4})-([0-9]{2})$/.exec(monthFilter);
+                if (match) {
+                    const year = parseInt(match[1], 10);
+                    const month = parseInt(match[2], 10);
+                    whereClause += ' AND YEAR(lk.tanggal_laporan) = ? AND MONTH(lk.tanggal_laporan) = ?';
+                    params.push(year, month);
+                }
+            } else if (dateFilter) {
+                // Fallback ke filter tanggal exact (YYYY-MM-DD)
                 whereClause += ' AND lk.tanggal_laporan = ?';
                 params.push(dateFilter);
             }
@@ -210,6 +221,28 @@ class LaporanKeuangan {
             if (connection) connection.release();
         }
     }
+
+    static async getAvailableMonths() {
+        let connection;
+        try {
+            connection = await this.getConnection();
+            const query = `
+        SELECT DISTINCT
+          YEAR(tanggal_laporan) AS year,
+          MONTH(tanggal_laporan) AS month
+        FROM laporan_keuangan
+        WHERE status_deleted = 0
+        ORDER BY YEAR(tanggal_laporan) DESC, MONTH(tanggal_laporan) DESC
+      `;
+            const [rows] = await connection.execute(query);
+            return { success: true, data: rows };
+        } catch (error) {
+            console.error('Error in LaporanKeuangan.getAvailableMonths:', error);
+            return { success: false, error: error.message };
+        } finally {
+            if (connection) connection.release();
+        }
+    }
 }
 
-module.exports = LaporanKeuangan; 
+module.exports = LaporanKeuangan;

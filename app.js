@@ -56,6 +56,8 @@ const adminSdmRoutes = require('./routes/adminSdm');
 const jobdeskRoutes = require('./routes/jobdeskRoutes');
 const sopRoutes = require('./routes/sopRoutes');
 const strukturOrganisasiRoutes = require('./routes/strukturOrganisasi');
+const ownerSdmRoutes = require('./routes/ownerSdm');
+const targetHarianRoutes = require('./routes/targetHarian');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -99,6 +101,7 @@ app.use('/api/admin/pengumuman', adminPengumumanRoutes);
 app.use('/api/admin/komplain', adminKomplainRoutes);
 app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/sdm', adminSdmRoutes);
+app.use('/api/owner/sdm', ownerSdmRoutes);
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/owner/data-aset', ownerDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);
@@ -125,10 +128,13 @@ app.use('/api/jobdesk', jobdeskRoutes);
 app.use('/api/sop', sopRoutes);
 app.use('/api/struktur-organisasi', strukturOrganisasiRoutes);
 app.use('/api/health', require('./routes/health'));
+app.use('/api/target', targetHarianRoutes);
+// Alias baru agar konsisten dengan penamaan 'data target' di frontend tanpa bentrok dengan entity DataTarget
+app.use('/api/data-target-harian', targetHarianRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // WebSocket service sudah di-setup di atas
 
-module.exports = { app, server, sequelize, testConnection }; 
+module.exports = { app, server, sequelize, testConnection };

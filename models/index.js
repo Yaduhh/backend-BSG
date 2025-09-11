@@ -20,6 +20,13 @@ const PicKategori = require('./PicKategori');
 const SdmDivisi = require('./SdmDivisi');
 const SdmJabatan = require('./SdmJabatan');
 const SdmData = require('./SdmData');
+const JobdeskDivisi = require('./JobdeskDivisi');
+const JobdeskDepartment = require('./JobdeskDepartment');
+const JobdeskPosition = require('./JobdeskPosition');
+const SopDivisi = require('./SopDivisi');
+const SopCategory = require('./SopCategory');
+const SopStep = require('./SopStep');
+const StrukturOrganisasi = require('./StrukturOrganisasi');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -117,6 +124,50 @@ SdmJabatan.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 SdmJabatan.hasMany(SdmData, { foreignKey: 'jabatan_id', as: 'employees' });
 SdmData.belongsTo(SdmJabatan, { foreignKey: 'jabatan_id', as: 'jabatan' });
 
+// Jobdesk associations
+User.hasMany(JobdeskDivisi, { foreignKey: 'created_by', as: 'jobdeskDivisiCreated' });
+User.hasMany(JobdeskDivisi, { foreignKey: 'updated_by', as: 'jobdeskDivisiUpdated' });
+JobdeskDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+JobdeskDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+User.hasMany(JobdeskDepartment, { foreignKey: 'created_by', as: 'jobdeskDepartmentCreated' });
+User.hasMany(JobdeskDepartment, { foreignKey: 'updated_by', as: 'jobdeskDepartmentUpdated' });
+JobdeskDepartment.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+JobdeskDepartment.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+User.hasMany(JobdeskPosition, { foreignKey: 'created_by', as: 'jobdeskPositionCreated' });
+User.hasMany(JobdeskPosition, { foreignKey: 'updated_by', as: 'jobdeskPositionUpdated' });
+JobdeskPosition.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+JobdeskPosition.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+JobdeskDivisi.hasMany(JobdeskDepartment, { foreignKey: 'divisi_id', as: 'departments' });
+JobdeskDepartment.belongsTo(JobdeskDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
+
+JobdeskDepartment.hasMany(JobdeskPosition, { foreignKey: 'department_id', as: 'positions' });
+JobdeskPosition.belongsTo(JobdeskDepartment, { foreignKey: 'department_id', as: 'department' });
+
+// SOP associations
+User.hasMany(SopDivisi, { foreignKey: 'created_by', as: 'sopDivisiCreated' });
+User.hasMany(SopDivisi, { foreignKey: 'updated_by', as: 'sopDivisiUpdated' });
+SopDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SopDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+User.hasMany(SopCategory, { foreignKey: 'created_by', as: 'sopCategoryCreated' });
+User.hasMany(SopCategory, { foreignKey: 'updated_by', as: 'sopCategoryUpdated' });
+SopCategory.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SopCategory.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+User.hasMany(SopStep, { foreignKey: 'created_by', as: 'sopStepCreated' });
+User.hasMany(SopStep, { foreignKey: 'updated_by', as: 'sopStepUpdated' });
+SopStep.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+SopStep.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
+SopDivisi.hasMany(SopCategory, { foreignKey: 'divisi_id', as: 'categories' });
+SopCategory.belongsTo(SopDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
+
+SopCategory.hasMany(SopStep, { foreignKey: 'category_id', as: 'steps' });
+SopStep.belongsTo(SopCategory, { foreignKey: 'category_id', as: 'category' });
+
 module.exports = {
   User,
   UserDevice,
@@ -139,5 +190,12 @@ module.exports = {
   PicKategori,
   SdmDivisi,
   SdmJabatan,
-  SdmData
+  SdmData,
+  JobdeskDivisi,
+  JobdeskDepartment,
+  JobdeskPosition,
+  SopDivisi,
+  SopCategory,
+  SopStep,
+  StrukturOrganisasi
 };

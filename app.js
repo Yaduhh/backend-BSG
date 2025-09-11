@@ -53,6 +53,9 @@ const mediaSosialRoutes = require('./routes/mediaSosial');
 const jadwalPembayaranRoutes = require('./routes/jadwalPembayaran');
 const picKategoriRoutes = require('./routes/picKategori');
 const adminSdmRoutes = require('./routes/adminSdm');
+const jobdeskRoutes = require('./routes/jobdeskRoutes');
+const sopRoutes = require('./routes/sopRoutes');
+const strukturOrganisasiRoutes = require('./routes/strukturOrganisasi');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -118,6 +121,9 @@ app.use('/api/pic-kategori', picKategoriRoutes);
 app.use('/api/media-sosial', mediaSosialRoutes);
 app.use('/api/tim-merah-biru', timMerahBiruRoutes);
 app.use('/api/kpi', kpiRoutes);
+app.use('/api/jobdesk', jobdeskRoutes);
+app.use('/api/sop', sopRoutes);
+app.use('/api/struktur-organisasi', strukturOrganisasiRoutes);
 app.use('/api/health', require('./routes/health'));
 
 // Serve static files from uploads directory

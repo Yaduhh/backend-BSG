@@ -12,6 +12,10 @@ const pengumumanRoutes = require('./pengumuman');
 const jobdeskRoutes = require('./jobdeskRoutes');
 const sopRoutes = require('./sopRoutes');
 const strukturOrganisasiRoutes = require('./strukturOrganisasi');
+const ownerSdmRoutes = require('./ownerSdm');
+// Training modules
+const adminTrainingRoutes = require('./adminTraining');
+const ownerTrainingRoutes = require('./ownerTraining');
 
 // Mount routes
 router.use('/health', healthRoutes);
@@ -24,5 +28,9 @@ router.use('/pengumuman', pengumumanRoutes);
 router.use('/jobdesk', jobdeskRoutes);
 router.use('/sop', sopRoutes);
 router.use('/struktur-organisasi', strukturOrganisasiRoutes);
+router.use('/owner/sdm', ownerSdmRoutes);
+// Training mounts
+router.use('/admin/training', adminTrainingRoutes);
+router.use('/owner/training', ownerTrainingRoutes);
 
-module.exports = router; 
+module.exports = router;

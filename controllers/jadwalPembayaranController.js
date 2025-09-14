@@ -18,15 +18,21 @@ const getAllJadwalPembayaran = async (req, res) => {
         attributes: ['kategori']
       });
       allowedKategori = picKategori.map(pk => pk.kategori);
-      
+
+      // Jika admin tidak punya kategori yang di-assign, fallback: tampilkan semua
+      // (Sebelumnya mengembalikan data kosong). Owner tetap melihat semua.
       if (allowedKategori.length === 0) {
-        return res.json({
-          success: true,
-          data: []
-        });
+        if (user.role === 'admin') {
+          // Biarkan tanpa filter kategori -> semua data akan ditampilkan
+        } else {
+          return res.json({
+            success: true,
+            data: []
+          });
+        }
+      } else {
+        whereCondition.kategori = { [Op.in]: allowedKategori };
       }
-      
-      whereCondition.kategori = { [Op.in]: allowedKategori };
     }
 
     const jadwalPembayaran = await JadwalPembayaran.findAll({

@@ -76,6 +76,10 @@ app.set('wsService', wsService);
 // Setup middleware
 setupMiddleware(app);
 
+// Owner read-only middleware: batasi aksi tulis untuk role owner kecuali allowlist
+const ownerReadOnly = require('./middleware/ownerReadOnly');
+app.use(ownerReadOnly);
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

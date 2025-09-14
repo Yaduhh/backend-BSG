@@ -26,6 +26,14 @@ const KPI = sequelize.define('KPI', {
   photo_url: {
     type: DataTypes.STRING(500),
     allowNull: true
+  },
+  id_user: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
   }
 }, {
   tableName: 'kpis',
@@ -35,6 +43,9 @@ const KPI = sequelize.define('KPI', {
   indexes: [
     {
       fields: ['category']
+    },
+    {
+      fields: ['id_user']
     }
   ]
 });

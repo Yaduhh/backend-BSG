@@ -688,7 +688,7 @@ router.get('/hierarchy', authenticateToken, async (req, res) => {
                 {
                   model: User,
                   as: 'user',
-                  attributes: ['id', 'nama', 'username', 'email']
+                  attributes: ['id', 'nama', 'username', 'email', 'training_dasar', 'training_leadership', 'training_skill', 'training_lanjutan']
                 }
               ]
             }
@@ -1034,6 +1034,146 @@ router.get('/employees/:id', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching employee:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// ===== SDM DATA BY USER ID ROUTES =====
+
+// Get SDM data by user ID
+router.get('/data/user/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    const sdmData = await SdmData.findOne({
+      where: {
+        user_id: userId,
+        status_deleted: false
+      },
+      include: [
+        {
+          model: SdmJabatan,
+          as: 'jabatan',
+          attributes: ['id', 'nama_jabatan'],
+          include: [
+            {
+              model: SdmDivisi,
+              as: 'divisi',
+              attributes: ['id', 'nama_divisi']
+            }
+          ]
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nama', 'username', 'email']
+        }
+      ]
+    });
+
+    if (!sdmData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data SDM tidak ditemukan untuk user ini'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: sdmData
+    });
+  } catch (error) {
+    console.error('Error fetching SDM data by user ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Update SDM data by user ID
+router.put('/data/user/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin only.'
+      });
+    }
+
+    const { userId } = req.params;
+    const updateData = req.body;
+
+    const sdmData = await SdmData.findOne({
+      where: {
+        user_id: userId,
+        status_deleted: false
+      }
+    });
+
+    if (!sdmData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data SDM tidak ditemukan untuk user ini'
+      });
+    }
+
+    // Calculate totals if gaji data is provided
+    if (updateData.gaji_pokok !== undefined || updateData.tunjangan_kinerja !== undefined || 
+        updateData.tunjangan_posisi !== undefined || updateData.uang_makan !== undefined || 
+        updateData.lembur !== undefined || updateData.bonus !== undefined) {
+      
+      const gaji_pokok = updateData.gaji_pokok !== undefined ? updateData.gaji_pokok : sdmData.gaji_pokok;
+      const tunjangan_kinerja = updateData.tunjangan_kinerja !== undefined ? updateData.tunjangan_kinerja : sdmData.tunjangan_kinerja;
+      const tunjangan_posisi = updateData.tunjangan_posisi !== undefined ? updateData.tunjangan_posisi : sdmData.tunjangan_posisi;
+      const uang_makan = updateData.uang_makan !== undefined ? updateData.uang_makan : sdmData.uang_makan;
+      const lembur = updateData.lembur !== undefined ? updateData.lembur : sdmData.lembur;
+      const bonus = updateData.bonus !== undefined ? updateData.bonus : sdmData.bonus;
+      
+      updateData.total_gaji = gaji_pokok + tunjangan_kinerja + tunjangan_posisi + uang_makan + lembur + bonus;
+    }
+
+    if (updateData.potongan !== undefined || updateData.bpjstk !== undefined || 
+        updateData.bpjs_kesehatan !== undefined || updateData.bpjs_kes_penambahan !== undefined || 
+        updateData.sp_1_2 !== undefined || updateData.pinjaman_karyawan !== undefined || 
+        updateData.pph21 !== undefined) {
+      
+      const potongan = updateData.potongan !== undefined ? updateData.potongan : sdmData.potongan;
+      const bpjstk = updateData.bpjstk !== undefined ? updateData.bpjstk : sdmData.bpjstk;
+      const bpjs_kesehatan = updateData.bpjs_kesehatan !== undefined ? updateData.bpjs_kesehatan : sdmData.bpjs_kesehatan;
+      const bpjs_kes_penambahan = updateData.bpjs_kes_penambahan !== undefined ? updateData.bpjs_kes_penambahan : sdmData.bpjs_kes_penambahan;
+      const sp_1_2 = updateData.sp_1_2 !== undefined ? updateData.sp_1_2 : sdmData.sp_1_2;
+      const pinjaman_karyawan = updateData.pinjaman_karyawan !== undefined ? updateData.pinjaman_karyawan : sdmData.pinjaman_karyawan;
+      const pph21 = updateData.pph21 !== undefined ? updateData.pph21 : sdmData.pph21;
+      
+      updateData.total_potongan = potongan + bpjstk + bpjs_kesehatan + bpjs_kes_penambahan + sp_1_2 + pinjaman_karyawan + pph21;
+    }
+
+    if (updateData.total_gaji !== undefined && updateData.total_potongan !== undefined) {
+      updateData.total_gaji_dibayarkan = updateData.total_gaji - updateData.total_potongan;
+    }
+
+    updateData.updated_by = req.user.id;
+
+    await sdmData.update(updateData);
+
+    res.json({
+      success: true,
+      message: 'Data SDM berhasil diupdate',
+      data: sdmData
+    });
+  } catch (error) {
+    console.error('Error updating SDM data by user ID:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

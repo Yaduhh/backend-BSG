@@ -1,5 +1,37 @@
 const mysql = require('mysql2/promise');
+const path = require('path');
+const fs = require('fs');
+
+const envPath = path.join(__dirname, '../.env');
+let envConfig = {};
+
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  const cleanContent = envContent
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n');
+
+  cleanContent.split('\n').forEach(line => {
+    const trimmedLine = line.trim();
+    if (trimmedLine && !trimmedLine.startsWith('#')) {
+      const [key, value] = trimmedLine.split('=');
+      if (key && value !== undefined) {
+        const cleanKey = key.trim();
+        const cleanValue = value.trim();
+        envConfig[cleanKey] = cleanValue;
+      }
+    }
+  });
+}
+
 require('dotenv').config();
+
+const DB_HOST = envConfig.DB_HOST || process.env.DB_HOST || 'localhost';
+const DB_PORT = envConfig.DB_PORT || process.env.DB_PORT || 3306;
+const DB_USER = envConfig.DB_USER || process.env.DB_USER || 'root';
+const DB_PASSWORD = envConfig.DB_PASSWORD || process.env.DB_PASSWORD || '';
+const DB_NAME = envConfig.DB_NAME || process.env.DB_NAME || 'sistem_bosgil_group';
 
 async function createMediaSosialTable() {
   let connection;
@@ -7,11 +39,11 @@ async function createMediaSosialTable() {
     console.log('🚀 Starting media_sosial table creation...');
 
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || '192.168.1.2',
-      port: process.env.DB_PORT || 3306,
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'sistem_bosgil_group'
+      host: DB_HOST,
+      port: parseInt(DB_PORT),
+      user: DB_USER,
+      password: DB_PASSWORD,
+      database: DB_NAME
     });
 
     console.log('✅ Database connected successfully');

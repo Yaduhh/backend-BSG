@@ -33,7 +33,7 @@ router.get('/hierarchy', authenticateToken, async (req, res) => {
                 {
                   model: User,
                   as: 'user',
-                  attributes: ['id', 'nama', 'username', 'email']
+                  attributes: ['id', 'nama', 'username', 'email', 'training_dasar', 'training_leadership', 'training_skill', 'training_lanjutan']
                 }
               ]
             }

@@ -76,8 +76,8 @@ async function fixAnekaGrafikImages() {
             }
 
             // Fix old IP addresses
-            if (fixedUrl.includes('192.168.1.2:3000')) {
-              fixedUrl = fixedUrl.replace('http://192.168.1.2:3000', '');
+            if (fixedUrl.includes('192.168.23.223:3000')) {
+              fixedUrl = fixedUrl.replace('http://192.168.23.223:3000', '');
               console.log(`🔧 Fixed old IP: ${img.url} -> ${fixedUrl}`);
               hasChanges = true;
             }
@@ -99,8 +99,8 @@ async function fixAnekaGrafikImages() {
             let fixedServerPath = img.serverPath;
 
             // Remove old IP addresses from serverPath
-            if (fixedServerPath.includes('192.168.1.2:3000')) {
-              fixedServerPath = fixedServerPath.replace('http://192.168.1.2:3000', '');
+            if (fixedServerPath.includes('192.168.23.223:3000')) {
+              fixedServerPath = fixedServerPath.replace('http://192.168.23.223:3000', '');
               console.log(`🔧 Fixed serverPath: ${img.serverPath} -> ${fixedServerPath}`);
               hasChanges = true;
             }

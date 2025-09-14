@@ -40,6 +40,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
+          lk.judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -89,6 +90,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
+          lk.judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -120,12 +122,13 @@ class LaporanKeuangan {
         try {
             connection = await this.getConnection();
             const query = `
-        INSERT INTO laporan_keuangan (id_user, tanggal_laporan, isi_laporan, images)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO laporan_keuangan (id_user, judul_laporan, tanggal_laporan, isi_laporan, images)
+        VALUES (?, ?, ?, ?, ?)
       `;
 
             const [result] = await connection.execute(query, [
                 data.id_user,
+                data.judul_laporan || null,
                 data.tanggal_laporan,
                 data.isi_laporan,
                 data.images ? JSON.stringify(data.images) : null
@@ -146,11 +149,12 @@ class LaporanKeuangan {
             connection = await this.getConnection();
             const query = `
         UPDATE laporan_keuangan 
-        SET tanggal_laporan = ?, isi_laporan = ?, images = ?, updated_at = CURRENT_TIMESTAMP
+        SET judul_laporan = ?, tanggal_laporan = ?, isi_laporan = ?, images = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND status_deleted = 0
       `;
 
             const [result] = await connection.execute(query, [
+                data.judul_laporan || null,
                 data.tanggal_laporan,
                 data.isi_laporan,
                 data.images ? JSON.stringify(data.images) : null,

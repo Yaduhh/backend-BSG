@@ -47,12 +47,18 @@ if (fs.existsSync(envPath)) {
 
 require('dotenv').config();
 
+const DB_HOST = envConfig.DB_HOST || process.env.DB_HOST || 'localhost';
+const DB_PORT = envConfig.DB_PORT || process.env.DB_PORT || 3306;
+const DB_USER = envConfig.DB_USER || process.env.DB_USER || 'root';
+const DB_PASSWORD = envConfig.DB_PASSWORD || process.env.DB_PASSWORD || '';
+const DB_NAME = envConfig.DB_NAME || process.env.DB_NAME || 'sistem_bosgil_group';
+
 const dbConfig = {
-  host: envConfig.DB_HOST || process.env.DB_HOST,
-  port: envConfig.DB_PORT || process.env.DB_PORT,
-  user: envConfig.DB_USER || process.env.DB_USER,
-  password: envConfig.DB_PASSWORD || process.env.DB_PASSWORD,
-  database: envConfig.DB_NAME || process.env.DB_NAME
+  host: DB_HOST,
+  port: parseInt(DB_PORT),
+  user: DB_USER,
+  password: DB_PASSWORD,
+  database: DB_NAME
 };
 
 async function addSoftDeleteToInvestorTable() {

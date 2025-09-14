@@ -1,8 +1,46 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const { sequelize } = require('../config/database');
 const DataBinaLingkungan = require('../models/DataBinaLingkungan');
 const { authenticateToken } = require('../middleware/auth');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = './uploads/data-bina-lingkungan';
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = crypto.randomBytes(16).toString('hex');
+    const ext = path.extname(file.originalname);
+    cb(null, `bina-lingkungan-${uniqueSuffix}${ext}`);
+  }
+});
+
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = /jpeg|jpg|png|gif|pdf/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only images and PDF files are allowed'));
+    }
+  }
+});
 
 // Get all data bina lingkungan
 router.get('/', authenticateToken, async (req, res) => {
@@ -53,6 +91,56 @@ router.get('/', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memuat data bina lingkungan'
+    });
+  }
+});
+
+// Get unique locations
+router.get('/locations/list', authenticateToken, async (req, res) => {
+  try {
+    const locations = await DataBinaLingkungan.findAll({
+      attributes: [
+        'lokasi',
+        [sequelize.fn('MAX', sequelize.col('updated_at')), 'latest_updated_at'],
+        [sequelize.fn('MAX', sequelize.col('created_at')), 'latest_created_at'],
+        [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+      ],
+      where: { status_deleted: false },
+      group: ['lokasi'],
+      order: [[sequelize.fn('MAX', sequelize.col('updated_at')), 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: locations
+    });
+  } catch (error) {
+    console.error('Error fetching locations:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal memuat lokasi'
+    });
+  }
+});
+
+// Get data by location
+router.get('/location/:lokasi', authenticateToken, async (req, res) => {
+  try {
+    const { lokasi } = req.params;
+    const data = await DataBinaLingkungan.findAll({
+      where: { lokasi, status_deleted: false },
+      order: [['updated_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data
+    });
+  } catch (error) {
+    console.error('Error fetching data by location:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal memuat data berdasarkan lokasi'
     });
   }
 });
@@ -242,6 +330,194 @@ router.get('/location/:lokasi', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Gagal memuat data lokasi'
+    });
+  }
+});
+
+// Upload lampiran
+router.post('/:id/lampiran', authenticateToken, upload.array('files', 10), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada file yang diupload'
+      });
+    }
+
+    const data = await DataBinaLingkungan.findOne({
+      where: { id, status_deleted: false }
+    });
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data tidak ditemukan'
+      });
+    }
+
+    // Prepare file data
+    const fileData = req.files.map(file => ({
+      originalName: file.originalname,
+      storedName: file.filename,
+      path: file.path,
+      mimeType: file.mimetype,
+      size: file.size
+    }));
+
+    // Get existing lampiran
+    let existingLampiran = [];
+    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
+      try {
+        existingLampiran = JSON.parse(data.lampiran);
+        if (!Array.isArray(existingLampiran)) {
+          existingLampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing existing lampiran:', error);
+        existingLampiran = [];
+      }
+    }
+
+    // Add new files to existing ones
+    const updatedLampiran = [...existingLampiran, ...fileData];
+
+    // Update the data with new lampiran
+    await data.update({
+      lampiran: JSON.stringify(updatedLampiran)
+    });
+
+    res.json({
+      success: true,
+      message: 'Lampiran berhasil diupload',
+      data: fileData
+    });
+  } catch (error) {
+    console.error('Error uploading lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengupload lampiran'
+    });
+  }
+});
+
+// Get lampiran
+router.get('/:id/lampiran', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const data = await DataBinaLingkungan.findOne({
+      where: { id, status_deleted: false }
+    });
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data tidak ditemukan'
+      });
+    }
+
+    let lampiran = [];
+    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
+      try {
+        lampiran = JSON.parse(data.lampiran);
+        if (!Array.isArray(lampiran)) {
+          lampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing lampiran:', error);
+        lampiran = [];
+      }
+    }
+
+    res.json({
+      success: true,
+      data: lampiran
+    });
+  } catch (error) {
+    console.error('Error fetching lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil lampiran'
+    });
+  }
+});
+
+// Delete lampiran
+router.delete('/:id/lampiran', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stored_name } = req.body;
+
+    if (!stored_name) {
+      return res.status(400).json({
+        success: false,
+        message: 'stored_name diperlukan'
+      });
+    }
+
+    const data = await DataBinaLingkungan.findOne({
+      where: { id, status_deleted: false }
+    });
+
+    if (!data) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data tidak ditemukan'
+      });
+    }
+
+    let lampiran = [];
+    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
+      try {
+        lampiran = JSON.parse(data.lampiran);
+        if (!Array.isArray(lampiran)) {
+          lampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing lampiran:', error);
+        return res.status(500).json({
+          success: false,
+          message: 'Gagal memproses lampiran'
+        });
+      }
+    }
+
+    // Find and remove the file
+    const fileIndex = lampiran.findIndex(file => file.stored_name === stored_name);
+    if (fileIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'File tidak ditemukan'
+      });
+    }
+
+    const fileToDelete = lampiran[fileIndex];
+    
+    // Delete physical file
+    const filePath = fileToDelete.path;
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Remove from array
+    lampiran.splice(fileIndex, 1);
+
+    // Update database
+    await data.update({
+      lampiran: JSON.stringify(lampiran)
+    });
+
+    res.json({
+      success: true,
+      message: 'Lampiran berhasil dihapus'
+    });
+  } catch (error) {
+    console.error('Error deleting lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal menghapus lampiran'
     });
   }
 });

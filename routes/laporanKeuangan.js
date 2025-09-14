@@ -85,7 +85,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Create new laporan keuangan
 router.post('/', authenticateToken, async (req, res) => {
     try {
-        const { tanggal_laporan, isi_laporan, images } = req.body;
+        const { judul_laporan, tanggal_laporan, isi_laporan, images } = req.body;
 
         if (!tanggal_laporan || !isi_laporan) {
             return res.status(400).json({ error: 'Tanggal laporan dan isi laporan harus diisi' });
@@ -93,6 +93,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
         const data = {
             id_user: req.user.id,
+            judul_laporan,
             tanggal_laporan,
             isi_laporan,
             images
@@ -115,13 +116,14 @@ router.post('/', authenticateToken, async (req, res) => {
 router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
-        const { tanggal_laporan, isi_laporan, images } = req.body;
+        const { judul_laporan, tanggal_laporan, isi_laporan, images } = req.body;
 
         if (!tanggal_laporan || !isi_laporan) {
             return res.status(400).json({ error: 'Tanggal laporan dan isi laporan harus diisi' });
         }
 
         const data = {
+            judul_laporan,
             tanggal_laporan,
             isi_laporan,
             images

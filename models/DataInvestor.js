@@ -72,6 +72,8 @@ class DataInvestor {
           kontak_darurat VARCHAR(20),
           nama_pasangan VARCHAR(100),
           nama_anak TEXT,
+          ahli_waris VARCHAR(100),
+          lampiran TEXT,
           investasi_di_outlet DECIMAL(15,2),
           persentase_bagi_hasil VARCHAR(50),
           tipe_data ENUM('outlet', 'biodata') DEFAULT 'outlet',

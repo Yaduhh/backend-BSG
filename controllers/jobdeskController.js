@@ -90,15 +90,18 @@ const getCompleteJobdeskStructure = async (req, res) => {
     console.log('🔍 Request URL:', req.url);
     
     const divisions = await JobdeskDivisi.findAll({
+      where: { status_aktif: true },
       include: [
         {
           model: JobdeskDepartment,
           as: 'departments',
+          where: { status_aktif: true },
           required: false,
           include: [
             {
               model: JobdeskPosition,
               as: 'positions',
+              where: { status_aktif: true },
               required: false
             }
           ]

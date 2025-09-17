@@ -59,6 +59,7 @@ const sopRoutes = require('./routes/sopRoutes');
 const strukturOrganisasiRoutes = require('./routes/strukturOrganisasi');
 const ownerSdmRoutes = require('./routes/ownerSdm');
 const targetHarianRoutes = require('./routes/targetHarian');
+const aturanRoutes = require('./routes/aturan');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -137,6 +138,13 @@ app.use('/api/health', require('./routes/health'));
 app.use('/api/target', targetHarianRoutes);
 // Alias baru agar konsisten dengan penamaan 'data target' di frontend tanpa bentrok dengan entity DataTarget
 app.use('/api/data-target-harian', targetHarianRoutes);
+
+// Aturan (umum + alias per role, saat ini gunakan handler yang sama)
+app.use('/api/aturan', aturanRoutes);
+app.use('/api/admin/aturan', aturanRoutes);
+app.use('/api/owner/aturan', aturanRoutes);
+app.use('/api/divisi/aturan', aturanRoutes);
+app.use('/api/tim/aturan', aturanRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -621,7 +621,41 @@ router.post(
   authenticateToken,
   laporanKeuanganUpload.array("images", 5),
   (req, res) => {
-    // ... (rest of the code remains the same)
+    try {
+      if (!req.files || req.files.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "No images uploaded",
+        });
+      }
+
+      const uploadedFiles = req.files.map((file) => {
+        const relativePath = path.relative(
+          path.join(__dirname, "../uploads"),
+          file.path
+        );
+        return {
+          originalName: file.originalname,
+          filename: file.filename,
+          path: relativePath.replace(/\\/g, "/"),
+          mimetype: file.mimetype,
+          size: file.size,
+          url: `/uploads/${relativePath.replace(/\\/g, "/")}`,
+        };
+      });
+
+      return res.json({
+        success: true,
+        message: "LAPORAN KEUANGAN images uploaded successfully",
+        data: uploadedFiles,
+      });
+    } catch (error) {
+      console.error("❌ Error uploading LAPORAN KEUANGAN images:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading LAPORAN KEUANGAN images",
+      });
+    }
   }
 );
 

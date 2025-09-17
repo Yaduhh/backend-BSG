@@ -20,7 +20,6 @@ const PicKategori = require('./PicKategori');
 const SdmDivisi = require('./SdmDivisi');
 const SdmJabatan = require('./SdmJabatan');
 const SdmData = require('./SdmData');
-const JobdeskDivisi = require('./JobdeskDivisi');
 const JobdeskDepartment = require('./JobdeskDepartment');
 const JobdeskPosition = require('./JobdeskPosition');
 const SopDivisi = require('./SopDivisi');
@@ -125,11 +124,6 @@ SdmJabatan.hasMany(SdmData, { foreignKey: 'jabatan_id', as: 'employees' });
 SdmData.belongsTo(SdmJabatan, { foreignKey: 'jabatan_id', as: 'jabatan' });
 
 // Jobdesk associations
-User.hasMany(JobdeskDivisi, { foreignKey: 'created_by', as: 'jobdeskDivisiCreated' });
-User.hasMany(JobdeskDivisi, { foreignKey: 'updated_by', as: 'jobdeskDivisiUpdated' });
-JobdeskDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-JobdeskDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
-
 User.hasMany(JobdeskDepartment, { foreignKey: 'created_by', as: 'jobdeskDepartmentCreated' });
 User.hasMany(JobdeskDepartment, { foreignKey: 'updated_by', as: 'jobdeskDepartmentUpdated' });
 JobdeskDepartment.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
@@ -140,8 +134,9 @@ User.hasMany(JobdeskPosition, { foreignKey: 'updated_by', as: 'jobdeskPositionUp
 JobdeskPosition.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 JobdeskPosition.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
 
-JobdeskDivisi.hasMany(JobdeskDepartment, { foreignKey: 'divisi_id', as: 'departments' });
-JobdeskDepartment.belongsTo(JobdeskDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
+// Relasi dengan SdmDivisi
+SdmDivisi.hasMany(JobdeskDepartment, { foreignKey: 'divisi_id', as: 'jobdeskDepartments' });
+JobdeskDepartment.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 
 JobdeskDepartment.hasMany(JobdeskPosition, { foreignKey: 'department_id', as: 'positions' });
 JobdeskPosition.belongsTo(JobdeskDepartment, { foreignKey: 'department_id', as: 'department' });
@@ -191,7 +186,6 @@ module.exports = {
   SdmDivisi,
   SdmJabatan,
   SdmData,
-  JobdeskDivisi,
   JobdeskDepartment,
   JobdeskPosition,
   SopDivisi,

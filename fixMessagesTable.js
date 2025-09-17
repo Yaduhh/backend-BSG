@@ -8,7 +8,7 @@ async function fixMessagesTable() {
         // Create connection
         connection = await mysql.createConnection({
             host: process.env.DB_HOST || '172.20.10.10',
-            host: process.env.DB_HOST || '192.168.23.223',
+            host: process.env.DB_HOST || '192.168.1.6',
             port: process.env.DB_PORT || 3306,
             user: process.env.DB_USER || 'root',
             password: process.env.DB_PASSWORD || '',

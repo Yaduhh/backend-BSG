@@ -10,9 +10,9 @@ const JobdeskDepartment = sequelize.define('JobdeskDepartment', {
   divisi_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    comment: 'ID divisi',
+    comment: 'ID divisi dari sdm_divisi',
     references: {
-      model: 'jobdesk_divisi',
+      model: 'sdm_divisi',
       key: 'id'
     }
   },

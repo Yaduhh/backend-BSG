@@ -9,6 +9,16 @@ const User = sequelize.define('User', {
     autoIncrement: true,
     allowNull: false
   },
+  nib: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    comment: 'Nomor Induk Berusaha'
+  },
+  jenis_kelamin: {
+    type: DataTypes.ENUM('L', 'P'),
+    allowNull: true,
+    comment: 'Jenis Kelamin: L=Laki-laki, P=Perempuan'
+  },
   nama: {
     type: DataTypes.STRING(100),
     allowNull: false,

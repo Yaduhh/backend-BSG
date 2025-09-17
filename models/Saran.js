@@ -31,6 +31,17 @@ const Saran = sequelize.define('Saran', {
     onUpdate: 'CASCADE',
     onDelete: 'CASCADE'
   },
+  receive_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+    comment: 'ID user yang menerima saran'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
@@ -55,6 +66,8 @@ const Saran = sequelize.define('Saran', {
 
 // Relationships
 Saran.belongsTo(User, { foreignKey: 'created_by', as: 'user' });
+Saran.belongsTo(User, { foreignKey: 'receive_id', as: 'receiver' });
 User.hasMany(Saran, { foreignKey: 'created_by', as: 'saran' });
+User.hasMany(Saran, { foreignKey: 'receive_id', as: 'receivedSaran' });
 
 module.exports = Saran;

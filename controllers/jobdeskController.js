@@ -1,9 +1,10 @@
-const { JobdeskDivisi, JobdeskDepartment, JobdeskPosition } = require('../models');
+const { SdmDivisi, JobdeskDepartment, JobdeskPosition, SdmData, SdmJabatan } = require('../models');
 
-// Get all divisions
+// Get all divisions (from SdmDivisi)
 const getAllDivisions = async (req, res) => {
   try {
-    const divisions = await JobdeskDivisi.findAll({
+    const divisions = await SdmDivisi.findAll({
+      where: { status_aktif: true },
       order: [['nama_divisi', 'ASC']]
     });
 
@@ -89,12 +90,12 @@ const getCompleteJobdeskStructure = async (req, res) => {
     console.log('🔍 Request method:', req.method);
     console.log('🔍 Request URL:', req.url);
     
-    const divisions = await JobdeskDivisi.findAll({
+    const divisions = await SdmDivisi.findAll({
       where: { status_aktif: true },
       include: [
         {
           model: JobdeskDepartment,
-          as: 'departments',
+          as: 'jobdeskDepartments',
           where: { status_aktif: true },
           required: false,
           include: [
@@ -109,8 +110,8 @@ const getCompleteJobdeskStructure = async (req, res) => {
       ],
       order: [
         ['nama_divisi', 'ASC'],
-        [{ model: JobdeskDepartment, as: 'departments' }, 'nama_department', 'ASC'],
-        [{ model: JobdeskDepartment, as: 'departments' }, { model: JobdeskPosition, as: 'positions' }, 'nama_position', 'ASC']
+        [{ model: JobdeskDepartment, as: 'jobdeskDepartments' }, 'nama_department', 'ASC'],
+        [{ model: JobdeskDepartment, as: 'jobdeskDepartments' }, { model: JobdeskPosition, as: 'positions' }, 'nama_position', 'ASC']
       ]
     });
 
@@ -119,8 +120,8 @@ const getCompleteJobdeskStructure = async (req, res) => {
       const divisionData = division.toJSON();
       divisionData.status = division.status_aktif ? 0 : 1; // 0 = aktif, 1 = nonaktif
       
-      if (divisionData.departments) {
-        divisionData.departments = divisionData.departments.map(dept => {
+      if (divisionData.jobdeskDepartments) {
+        divisionData.departments = divisionData.jobdeskDepartments.map(dept => {
           dept.status = dept.status_aktif ? 0 : 1; // 0 = aktif, 1 = nonaktif
           
           if (dept.positions) {
@@ -153,36 +154,6 @@ const getCompleteJobdeskStructure = async (req, res) => {
   }
 };
 
-// Create division
-const createDivision = async (req, res) => {
-  try {
-    const { nama_divisi, keterangan, status } = req.body;
-    const created_by = req.user.id;
-
-    // Convert status: 0 = true (aktif), 1 = false (nonaktif)
-    const status_aktif = status === 0 ? true : false;
-
-    const division = await JobdeskDivisi.create({
-      nama_divisi,
-      keterangan,
-      status_aktif,
-      created_by
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Divisi berhasil dibuat',
-      data: division
-    });
-  } catch (error) {
-    console.error('Error creating division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal membuat divisi',
-      error: error.message
-    });
-  }
-};
 
 // Create department
 const createDepartment = async (req, res) => {
@@ -248,45 +219,6 @@ const createPosition = async (req, res) => {
   }
 };
 
-// Update division
-const updateDivision = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nama_divisi, keterangan, status } = req.body;
-    const updated_by = req.user.id;
-
-    const division = await JobdeskDivisi.findByPk(id);
-    if (!division) {
-      return res.status(404).json({
-        success: false,
-        message: 'Divisi tidak ditemukan'
-      });
-    }
-
-    // Convert status: 0 = true (aktif), 1 = false (nonaktif)
-    const status_aktif = status === 0 ? true : false;
-
-    await division.update({
-      nama_divisi,
-      keterangan,
-      status_aktif,
-      updated_by
-    });
-
-    res.json({
-      success: true,
-      message: 'Divisi berhasil diupdate',
-      data: division
-    });
-  } catch (error) {
-    console.error('Error updating division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal mengupdate divisi',
-      error: error.message
-    });
-  }
-};
 
 // Update department
 const updateDepartment = async (req, res) => {
@@ -370,38 +302,6 @@ const updatePosition = async (req, res) => {
   }
 };
 
-// Soft delete division
-const deleteDivision = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updated_by = req.user.id;
-
-    const division = await JobdeskDivisi.findByPk(id);
-    if (!division) {
-      return res.status(404).json({
-        success: false,
-        message: 'Divisi tidak ditemukan'
-      });
-    }
-
-    await division.update({
-      status_aktif: false,
-      updated_by
-    });
-
-    res.json({
-      success: true,
-      message: 'Divisi berhasil dihapus'
-    });
-  } catch (error) {
-    console.error('Error deleting division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menghapus divisi',
-      error: error.message
-    });
-  }
-};
 
 // Soft delete department
 const deleteDepartment = async (req, res) => {
@@ -469,18 +369,115 @@ const deletePosition = async (req, res) => {
   }
 };
 
+// Get jobdesk structure based on user's division
+const getUserJobdeskStructure = async (req, res) => {
+  try {
+    const userId = req.user.id; // From auth middleware
+    
+    // Find user's SDM data
+    const sdmData = await SdmData.findOne({
+      where: { 
+        user_id: userId,
+        status_deleted: false 
+      },
+      include: [
+        {
+          model: SdmJabatan,
+          as: 'jabatan',
+          where: { status_deleted: false },
+          required: true,
+          include: [
+            {
+              model: SdmDivisi,
+              as: 'divisi',
+              where: { status_deleted: false },
+              required: true
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!sdmData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data SDM tidak ditemukan untuk user ini'
+      });
+    }
+
+    const userDivisiId = sdmData.jabatan.divisi.id;
+    const userDivisiName = sdmData.jabatan.divisi.nama_divisi;
+
+    // Get jobdesk departments for user's division
+    const jobdeskDepartments = await JobdeskDepartment.findAll({
+      where: { 
+        divisi_id: userDivisiId,
+        status_aktif: true 
+      },
+      include: [
+        {
+          model: JobdeskPosition,
+          as: 'positions',
+          where: { status_aktif: true },
+          required: false
+        }
+      ],
+      order: [
+        ['nama_department', 'ASC'],
+        [{ model: JobdeskPosition, as: 'positions' }, 'nama_position', 'ASC']
+      ]
+    });
+
+    // Transform data to match frontend structure
+    const transformedData = {
+      user: {
+        id: userId,
+        nama: sdmData.nama,
+        jabatan: sdmData.jabatan.nama_jabatan,
+        divisi: userDivisiName
+      },
+      divisi: {
+        id: userDivisiId,
+        nama: userDivisiName
+      },
+      departments: jobdeskDepartments.map(dept => ({
+        id: dept.id,
+        nama: dept.nama_department,
+        keterangan: dept.keterangan,
+        positions: dept.positions?.map(pos => ({
+          id: pos.id,
+          nama: pos.nama_position,
+          keterangan: pos.keterangan
+        })) || []
+      }))
+    };
+
+    res.json({
+      success: true,
+      message: 'Data jobdesk berdasarkan divisi user berhasil diambil',
+      data: transformedData
+    });
+
+  } catch (error) {
+    console.error('Error getting user jobdesk structure:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengambil data jobdesk user',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllDivisions,
   getDepartmentsByDivision,
   getPositionsByDepartment,
   getCompleteJobdeskStructure,
-  createDivision,
+  getUserJobdeskStructure,
   createDepartment,
   createPosition,
-  updateDivision,
   updateDepartment,
   updatePosition,
-  deleteDivision,
   deleteDepartment,
   deletePosition
 };

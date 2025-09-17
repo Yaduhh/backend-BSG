@@ -5,13 +5,11 @@ const {
   getDepartmentsByDivision,
   getPositionsByDepartment,
   getCompleteJobdeskStructure,
-  createDivision,
+  getUserJobdeskStructure,
   createDepartment,
   createPosition,
-  updateDivision,
   updateDepartment,
   updatePosition,
-  deleteDivision,
   deleteDepartment,
   deletePosition
 } = require('../controllers/jobdeskController');
@@ -26,18 +24,18 @@ router.get('/divisions/:divisiId/departments', getDepartmentsByDivision);
 router.get('/departments/:departmentId/positions', getPositionsByDepartment);
 router.get('/structure', getCompleteJobdeskStructure);
 
+// Get jobdesk structure based on user's division
+router.get('/user-structure', getUserJobdeskStructure);
+
 // POST routes
-router.post('/divisions', createDivision);
 router.post('/departments', createDepartment);
 router.post('/positions', createPosition);
 
 // PUT routes
-router.put('/divisions/:id', updateDivision);
 router.put('/departments/:id', updateDepartment);
 router.put('/positions/:id', updatePosition);
 
 // DELETE routes
-router.delete('/divisions/:id', deleteDivision);
 router.delete('/departments/:id', deleteDepartment);
 router.delete('/positions/:id', deletePosition);
 

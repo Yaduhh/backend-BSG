@@ -60,6 +60,7 @@ const strukturOrganisasiRoutes = require('./routes/strukturOrganisasi');
 const ownerSdmRoutes = require('./routes/ownerSdm');
 const targetHarianRoutes = require('./routes/targetHarian');
 const aturanRoutes = require('./routes/aturan');
+const leaderAccessRoutes = require('./routes/leaderAccessRoutes');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -145,6 +146,9 @@ app.use('/api/admin/aturan', aturanRoutes);
 app.use('/api/owner/aturan', aturanRoutes);
 app.use('/api/divisi/aturan', aturanRoutes);
 app.use('/api/tim/aturan', aturanRoutes);
+
+// Leader Access routes
+app.use('/api/leader-access', leaderAccessRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -8,6 +8,8 @@ const ChatGroup = require('./ChatGroup');
 const ChatGroupMember = require('./ChatGroupMember');
 const KeuanganPoskas = require('./KeuanganPoskas');
 const PicMenu = require('./PicMenu');
+const PicLeader = require('./PicLeader');
+const LeaderDivisi = require('./LeaderDivisi');
 const Pengumuman = require('./Pengumuman');
 const TimMerah = require('./TimMerah');
 const TimBiru = require('./TimBiru');
@@ -163,6 +165,16 @@ SopCategory.belongsTo(SopDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 SopCategory.hasMany(SopStep, { foreignKey: 'category_id', as: 'steps' });
 SopStep.belongsTo(SopCategory, { foreignKey: 'category_id', as: 'category' });
 
+// LeaderDivisi associations
+User.hasMany(LeaderDivisi, { foreignKey: 'id_user', as: 'leaderDivisis' });
+LeaderDivisi.belongsTo(User, { foreignKey: 'id_user', as: 'user' });
+
+SdmDivisi.hasMany(LeaderDivisi, { foreignKey: 'id_divisi', as: 'divisiLeaders' });
+LeaderDivisi.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi' });
+
+LeaderDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+LeaderDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+
 module.exports = {
   User,
   UserDevice,
@@ -174,6 +186,8 @@ module.exports = {
   ChatGroupMember,
   KeuanganPoskas,
   PicMenu,
+  PicLeader,
+  LeaderDivisi,
   Pengumuman,
   TimMerah,
   TimBiru,

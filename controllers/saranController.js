@@ -67,6 +67,41 @@ const getAllSaranForOwner = async (req, res) => {
   }
 };
 
+// Get saran by receiver ID (for leaders)
+const getSaranByReceiver = async (req, res) => {
+  try {
+    const { receiverId } = req.params;
+    
+    const saran = await Saran.findAll({
+      where: { 
+        status_deleted: false,
+        receive_id: receiverId
+      },
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nama', 'email']
+        }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: saran,
+      message: 'Data saran berhasil diambil'
+    });
+  } catch (error) {
+    console.error('Error getting saran by receiver:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil data saran',
+      error: error.message
+    });
+  }
+};
+
 // Get saran by ID
 const getSaranById = async (req, res) => {
   try {
@@ -107,7 +142,7 @@ const getSaranById = async (req, res) => {
 // Create new saran
 const createSaran = async (req, res) => {
   try {
-    const { saran, deskripsi_saran } = req.body;
+    const { saran, deskripsi_saran, receive_id } = req.body;
     const created_by = req.user.id; // From auth middleware
 
     if (!saran) {
@@ -130,6 +165,7 @@ const createSaran = async (req, res) => {
       nama: user.nama, // Automatically set nama from logged in user
       saran,
       deskripsi_saran,
+      receive_id: receive_id || null, // Set receive_id jika ada
       created_by
     });
 
@@ -185,7 +221,7 @@ const createSaran = async (req, res) => {
 const updateSaran = async (req, res) => {
   try {
     const { id } = req.params;
-    const { saran, deskripsi_saran } = req.body;
+    const { saran, deskripsi_saran, receive_id } = req.body;
 
     const existingSaran = await Saran.findOne({
       where: { id, status_deleted: false }
@@ -201,6 +237,7 @@ const updateSaran = async (req, res) => {
     // Update fields (nama tidak bisa diubah)
     if (saran) existingSaran.saran = saran;
     if (deskripsi_saran !== undefined) existingSaran.deskripsi_saran = deskripsi_saran;
+    if (receive_id !== undefined) existingSaran.receive_id = receive_id;
 
     await existingSaran.save();
 
@@ -268,6 +305,7 @@ module.exports = {
   getAllSaran,
   getAllSaranForOwner,
   getSaranById,
+  getSaranByReceiver,
   createSaran,
   updateSaran,
   deleteSaran

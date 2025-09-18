@@ -1043,7 +1043,7 @@ router.get('/employees/:id', authenticateToken, async (req, res) => {
 
 // ===== SDM DATA BY USER ID ROUTES =====
 
-// Get SDM data by user ID
+// Get SDM data by user ID (Admin only)
 router.get('/data/user/:userId', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -1094,6 +1094,182 @@ router.get('/data/user/:userId', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching SDM data by user ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get SDM data by user ID (Leader - own data only)
+router.get('/data/user/:userId/leader', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'leader') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Leader only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    // Leader can only access their own data
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own data.'
+      });
+    }
+
+    const sdmData = await SdmData.findOne({
+      where: {
+        user_id: userId,
+        status_deleted: false
+      },
+      include: [
+        {
+          model: SdmJabatan,
+          as: 'jabatan',
+          attributes: ['id', 'nama_jabatan'],
+          include: [
+            {
+              model: SdmDivisi,
+              as: 'divisi',
+              attributes: ['id', 'nama_divisi']
+            }
+          ]
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nama', 'username', 'email']
+        }
+      ]
+    });
+
+    if (!sdmData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data SDM tidak ditemukan untuk user ini'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: sdmData
+    });
+  } catch (error) {
+    console.error('Error fetching SDM data by user ID for leader:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get team training data berdasarkan divisi leader
+router.get('/training/team/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'leader') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Leader only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    // Leader can only access their own team data
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own team data.'
+      });
+    }
+
+    // Cari data SDM leader untuk mendapatkan divisi
+    const leaderSdmData = await SdmData.findOne({
+      where: {
+        user_id: userId,
+        status_deleted: false
+      },
+      include: [
+        {
+          model: SdmJabatan,
+          as: 'jabatan',
+          include: [
+            {
+              model: SdmDivisi,
+              as: 'divisi'
+            }
+          ]
+        }
+      ]
+    });
+
+    if (!leaderSdmData) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data SDM leader tidak ditemukan'
+      });
+    }
+
+    const leaderDivisiId = leaderSdmData.jabatan.divisi.id;
+
+    // Ambil semua data SDM di divisi yang sama
+    const teamSdmData = await SdmData.findAll({
+      where: {
+        status_deleted: false
+      },
+      include: [
+        {
+          model: SdmJabatan,
+          as: 'jabatan',
+          where: {
+            divisi_id: leaderDivisiId,
+            status_deleted: false
+          },
+          include: [
+            {
+              model: SdmDivisi,
+              as: 'divisi'
+            }
+          ]
+        },
+        {
+          model: User,
+          as: 'user',
+          attributes: [
+            'id', 
+            'nama', 
+            'username', 
+            'email',
+            'training_dasar',
+            'training_leadership', 
+            'training_skill',
+            'training_lanjutan'
+          ]
+        }
+      ],
+      order: [
+        [{ model: User, as: 'user' }, 'nama', 'ASC']
+      ]
+    });
+
+    // Pisahkan data leader dan tim
+    const myData = teamSdmData.find(data => data.user_id === parseInt(userId));
+    const teamData = teamSdmData.filter(data => data.user_id !== parseInt(userId));
+
+    res.json({
+      success: true,
+      data: {
+        myData: myData,
+        team: teamData,
+        divisi: leaderSdmData.jabatan.divisi
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching team training data:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

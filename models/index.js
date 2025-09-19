@@ -28,6 +28,8 @@ const SopDivisi = require('./SopDivisi');
 const SopCategory = require('./SopCategory');
 const SopStep = require('./SopStep');
 const StrukturOrganisasi = require('./StrukturOrganisasi');
+const Pengajuan = require('./Pengajuan');
+const TugasSaya = require('./TugasSaya');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -175,6 +177,16 @@ LeaderDivisi.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi' });
 LeaderDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 LeaderDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
 
+// Pengajuan associations (tanpa FK DB-level)
+User.hasMany(Pengajuan, { foreignKey: 'created_by', as: 'pengajuanCreated', constraints: false });
+Pengajuan.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
+
+// TugasSaya associations (tanpa FK DB-level)
+User.hasMany(TugasSaya, { foreignKey: 'created_by', as: 'tugasSayaCreated', constraints: false });
+TugasSaya.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
+SdmDivisi.hasMany(TugasSaya, { foreignKey: 'id_divisi', as: 'tugasDivisi', constraints: false });
+TugasSaya.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi', constraints: false });
+
 module.exports = {
   User,
   UserDevice,
@@ -205,5 +217,7 @@ module.exports = {
   SopDivisi,
   SopCategory,
   SopStep,
-  StrukturOrganisasi
+  StrukturOrganisasi,
+  Pengajuan,
+  TugasSaya
 };

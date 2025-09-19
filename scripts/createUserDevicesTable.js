@@ -7,8 +7,8 @@ async function createUserDevicesTable() {
       CREATE TABLE IF NOT EXISTS user_devices (
         id INT PRIMARY KEY AUTO_INCREMENT,
         user_id INT NOT NULL,
-        device_id VARCHAR(255) NOT NULL,
-        expo_token VARCHAR(255) NOT NULL,
+        device_id VARCHAR(190) NOT NULL,
+        expo_token VARCHAR(190) NULL,
         device_name VARCHAR(100),
         platform ENUM('ios', 'android') NOT NULL,
         is_active BOOLEAN NOT NULL DEFAULT true,
@@ -20,7 +20,7 @@ async function createUserDevicesTable() {
         UNIQUE KEY unique_user_device (user_id, device_id),
         INDEX idx_expo_token (expo_token),
         INDEX idx_is_active (is_active)
-      )
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
     `);
     
     console.log('✅ Successfully created user_devices table');
@@ -39,6 +39,27 @@ async function createUserDevicesTable() {
       } else {
         console.error('❌ Error adding last_online column:', error.message);
       }
+    }
+    
+    // Alter existing table to adjust unique index
+    try {
+      await sequelize.query(`
+        ALTER TABLE user_devices
+        DROP INDEX unique_user_device;
+      `);
+      console.log('✅ Successfully dropped unique_user_device index');
+    } catch (error) {
+      console.error('❌ Error dropping unique_user_device index:', error.message);
+    }
+    
+    try {
+      await sequelize.query(`
+        ALTER TABLE user_devices
+        ADD UNIQUE KEY unique_user_device (user_id, device_id);
+      `);
+      console.log('✅ Successfully recreated unique_user_device index');
+    } catch (error) {
+      console.error('❌ Error recreating unique_user_device index:', error.message);
     }
     
   } catch (error) {

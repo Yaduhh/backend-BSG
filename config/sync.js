@@ -7,14 +7,14 @@ const { createChatTables } = require('../scripts/createChatTables');
 const syncDatabase = async () => {
   try {
     console.log('🔄 Syncing database...');
-    
+
+    // Pastikan tabel chat & user_devices dibuat/diperbaiki dulu (panjang kolom & index aman)
+    await createChatTables();
+
     // Sync semua model - tanpa alter untuk menghindari error "too many keys"
     await sequelize.sync({ force: false, alter: false });
-    
+
     console.log('✅ Database synced successfully!');
-    
-    // Create chat tables manually
-    await createChatTables();
     
     // Cek apakah ada user admin default
     const adminUser = await User.findOne({

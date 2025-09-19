@@ -20,6 +20,8 @@ const OWNER_WRITE_ALLOWLIST = [
   '/chat-group',
   // Daftar Tugas
   '/daftar-tugas',
+  // Pengajuan (owner boleh update status)
+  '/pengajuan',
 ]
 
 module.exports = function ownerReadOnly(req, res, next) {

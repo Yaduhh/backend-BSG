@@ -11,8 +11,8 @@ if (!fs.existsSync(uploadsDir)) {
 // Configure storage
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    // Base directory untuk data bina lingkungan
-    const baseDir = 'data-bina-lingkungan';
+    // Base directory untuk data pengajuan
+    const baseDir = 'data-pengajuan';
     
     // Subfolder berdasarkan tipe file
     let subDir = 'general';
@@ -24,7 +24,7 @@ const storage = multer.diskStorage({
       subDir = 'documents';
     }
     
-    // Pastikan folder data-bina-lingkungan dan subfoldernya ada
+    // Pastikan folder data-pengajuan dan subfoldernya ada
     const uploadPath = path.join(uploadsDir, baseDir, subDir);
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });

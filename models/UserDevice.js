@@ -17,12 +17,12 @@ const UserDevice = sequelize.define('UserDevice', {
     }
   },
   device_id: {
-    type: DataTypes.STRING(191), // Reduced from 255 to 191 to avoid key length issues
+    type: DataTypes.STRING(190), // Reduced from 255 to 190 to avoid key length issues on utf8mb4 composite index
     allowNull: false,
     comment: 'Unique device identifier (e.g., Device.osInternalBuildId)'
   },
   expo_token: {
-    type: DataTypes.STRING(255),
+    type: DataTypes.STRING(190), // Reduced to 190 to avoid index length issues on utf8mb4
     allowNull: true, // Changed to true to allow null values
     comment: 'Expo push notification token'
   },

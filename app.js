@@ -61,6 +61,10 @@ const ownerSdmRoutes = require('./routes/ownerSdm');
 const targetHarianRoutes = require('./routes/targetHarian');
 const aturanRoutes = require('./routes/aturan');
 const leaderAccessRoutes = require('./routes/leaderAccessRoutes');
+const pengajuanRoutes = require('./routes/pengajuan');
+const tugasSayaRoutes = require('./routes/tugasSaya');
+const divisiRoutes = require('./routes/divisi');
+const leaderDivisiRoutes = require('./routes/leaderDivisi');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -149,6 +153,10 @@ app.use('/api/tim/aturan', aturanRoutes);
 
 // Leader Access routes
 app.use('/api/leader-access', leaderAccessRoutes);
+app.use('/api/pengajuan', pengajuanRoutes);
+app.use('/api/leader/tugas-saya', tugasSayaRoutes);
+app.use('/api/divisi', divisiRoutes);
+app.use('/api/leader/divisi', leaderDivisiRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

@@ -6,10 +6,10 @@ const { Op } = require('sequelize');
 
 // ===== TIM MERAH ROUTES =====
 
-// Get all tim merah (admin only)
+// Get all tim merah (admin & leader read-only)
 router.get('/merah', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'leader'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Admin only.'
@@ -71,10 +71,10 @@ router.get('/merah', authenticateToken, async (req, res) => {
   }
 });
 
-// Get tim merah by ID
+// Get tim merah by ID (admin & leader read-only)
 router.get('/merah/:id', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'leader'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Admin only.'
@@ -271,10 +271,10 @@ router.delete('/merah/:id', authenticateToken, async (req, res) => {
 
 // ===== TIM BIRU ROUTES =====
 
-// Get all tim biru (admin only)
+// Get all tim biru (admin & leader read-only)
 router.get('/biru', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'leader'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Admin only.'
@@ -333,10 +333,10 @@ router.get('/biru', authenticateToken, async (req, res) => {
   }
 });
 
-// Get tim biru by ID
+// Get tim biru by ID (admin & leader read-only)
 router.get('/biru/:id', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'leader'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Admin only.'
@@ -517,10 +517,10 @@ router.delete('/biru/:id', authenticateToken, async (req, res) => {
 
 // ===== COMBINED ROUTES =====
 
-// Get summary statistics
+// Get summary statistics (admin & leader read-only)
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    if (req.user.role !== 'admin') {
+    if (!['admin', 'leader'].includes(req.user.role)) {
       return res.status(403).json({
         success: false,
         message: 'Access denied. Admin only.'

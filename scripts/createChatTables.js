@@ -48,8 +48,8 @@ const createChatTables = async () => {
       CREATE TABLE IF NOT EXISTS user_devices (
         id INT AUTO_INCREMENT PRIMARY KEY,
         user_id INT NOT NULL,
-        device_id VARCHAR(255) NOT NULL,
-        expo_token VARCHAR(255),
+        device_id VARCHAR(190) NOT NULL,
+        expo_token VARCHAR(190),
         device_type VARCHAR(20) DEFAULT 'mobile',
         is_active TINYINT DEFAULT 1,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -57,8 +57,25 @@ const createChatTables = async () => {
         UNIQUE KEY unique_user_device (user_id, device_id),
         INDEX idx_user_id (user_id),
         INDEX idx_expo_token (expo_token)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC;
     `);
+    
+    // Ensure existing user_devices table is compatible with index size limits
+    try {
+      await sequelize.query(`
+        ALTER TABLE user_devices
+        DROP INDEX unique_user_device,
+        MODIFY device_id VARCHAR(190) NOT NULL,
+        MODIFY expo_token VARCHAR(190) NULL,
+        ADD UNIQUE KEY unique_user_device (user_id, device_id)
+      `);
+      console.log('🔧 Adjusted user_devices column lengths and re-created unique index');
+    } catch (e) {
+      // Ignore if index/columns already adjusted
+      if (e && e.message) {
+        console.log('ℹ️ Skipping user_devices adjust step:', e.message);
+      }
+    }
     
     console.log('✅ Chat tables created successfully!');
     

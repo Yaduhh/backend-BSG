@@ -14,7 +14,7 @@ const Pengumuman = require('./Pengumuman');
 const TimMerah = require('./TimMerah');
 const TimBiru = require('./TimBiru');
 const DataAset = require('./DataAset');
-const KPI = require('./KPI');
+const { KPI } = require('./KPI');
 const DataTarget = require('./DataTarget');
 const DataInvestor = require('./DataInvestor');
 const JadwalPembayaran = require('./JadwalPembayaran');
@@ -124,6 +124,13 @@ SdmJabatan.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 
 SdmJabatan.hasMany(SdmData, { foreignKey: 'jabatan_id', as: 'employees' });
 SdmData.belongsTo(SdmJabatan, { foreignKey: 'jabatan_id', as: 'jabatan' });
+
+// KPI associations
+User.hasMany(KPI, { foreignKey: 'id_user', as: 'userKPIs' });
+KPI.belongsTo(User, { foreignKey: 'id_user', as: 'user' });
+
+SdmDivisi.hasMany(KPI, { foreignKey: 'divisi_id', as: 'divisiKPIs' });
+KPI.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 
 // Jobdesk associations
 User.hasMany(JobdeskDepartment, { foreignKey: 'created_by', as: 'jobdeskDepartmentCreated' });

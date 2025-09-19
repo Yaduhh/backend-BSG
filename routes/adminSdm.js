@@ -1357,5 +1357,316 @@ router.put('/data/user/:userId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get KPIs by leader's division
+router.get('/kpi/leader/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'leader') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Leader only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    // Leader can only access their own data
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own data.'
+      });
+    }
+
+    // Import KPI model and LeaderDivisi
+    const { KPI } = require('../models/KPI');
+    const { LeaderDivisi } = require('../models');
+
+    // Cari divisi leader menggunakan tabel leader_divisi
+    const leaderDivisiData = await LeaderDivisi.findAll({
+      where: {
+        id_user: userId
+      },
+      include: [
+        {
+          model: SdmDivisi,
+          as: 'divisi',
+          attributes: ['id', 'nama_divisi', 'keterangan']
+        }
+      ]
+    });
+
+    if (!leaderDivisiData || leaderDivisiData.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data divisi leader tidak ditemukan'
+      });
+    }
+
+    // Ambil semua divisi ID yang terkait dengan leader
+    const leaderDivisiIds = leaderDivisiData.map(item => item.id_divisi);
+    const leaderDivisi = leaderDivisiData[0].divisi; // Ambil divisi pertama untuk response
+
+    // Ambil hanya KPI divisi yang relevan untuk leader:
+    // KPI divisi (divisi_id IN leaderDivisiIds)
+    const kpis = await KPI.findAll({
+      where: {
+        category: 'divisi',
+        divisi_id: {
+          [Op.in]: leaderDivisiIds
+        }
+      },
+      attributes: ['id', 'name', 'category', 'photo_url', 'id_user', 'divisi_id', 'created_at', 'updated_at'],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nama', 'username', 'email']
+        },
+        {
+          model: SdmDivisi,
+          as: 'divisi',
+          attributes: ['id', 'nama_divisi']
+        }
+      ],
+      order: [
+        ['category', 'ASC'],
+        ['name', 'ASC']
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        kpis: kpis,
+        leaderDivisi: leaderDivisi
+      },
+      message: 'KPIs retrieved successfully for leader division'
+    });
+  } catch (error) {
+    console.error('Error getting KPIs by leader division:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get KPIs by leader (personal KPIs)
+router.get('/kpi/leader-personal/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'leader') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Leader only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    // Leader can only access their own data
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own data.'
+      });
+    }
+
+    // Import KPI model
+    const { KPI } = require('../models/KPI');
+    const { User, SdmDivisi } = require('../models');
+
+    // Ambil KPI yang relevan untuk leader:
+    // 1. KPI leader (id_user = userId)
+    // 2. KPI individu (id_user = userId)
+    const kpis = await KPI.findAll({
+      where: {
+        [Op.or]: [
+          // KPI leader untuk leader ini
+          {
+            category: 'leader',
+            id_user: userId
+          },
+          // KPI individu untuk leader ini
+          {
+            category: 'individu',
+            id_user: userId
+          }
+        ]
+      },
+      attributes: ['id', 'name', 'category', 'photo_url', 'id_user', 'divisi_id', 'created_at', 'updated_at'],
+      include: [
+        {
+          model: User,
+          as: 'user',
+          attributes: ['id', 'nama', 'username', 'email']
+        },
+        {
+          model: SdmDivisi,
+          as: 'divisi',
+          attributes: ['id', 'nama_divisi']
+        }
+      ],
+      order: [
+        ['category', 'ASC'],
+        ['name', 'ASC']
+      ]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        kpis: kpis
+      },
+      message: 'KPIs retrieved successfully for leader personal'
+    });
+  } catch (error) {
+    console.error('Error getting KPIs by leader personal:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// Get team data by leader
+router.get('/team-data/:userId', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'leader') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Leader only.'
+      });
+    }
+
+    const { userId } = req.params;
+
+    // Leader can only access their own data
+    if (req.user.id !== parseInt(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. You can only access your own data.'
+      });
+    }
+
+    // Import models
+    const { User, LeaderDivisi, SdmDivisi } = require('../models');
+
+    console.log('=== DEBUG LEADER DIVISI ===');
+    console.log('Leader ID:', userId);
+
+    // Cari divisi leader menggunakan tabel leader_divisi
+    const leaderDivisiData = await LeaderDivisi.findAll({
+      where: {
+        id_user: userId
+      },
+      include: [
+        {
+          model: SdmDivisi,
+          as: 'divisi',
+          attributes: ['id', 'nama_divisi', 'keterangan']
+        }
+      ]
+    });
+
+    console.log('Leader Divisi Data:', JSON.stringify(leaderDivisiData, null, 2));
+
+    if (!leaderDivisiData || leaderDivisiData.length === 0) {
+      console.log('ERROR: Data divisi leader tidak ditemukan');
+      return res.status(404).json({
+        success: false,
+        message: 'Data divisi leader tidak ditemukan'
+      });
+    }
+
+    // Ambil semua divisi ID yang terkait dengan leader
+    const leaderDivisiIds = leaderDivisiData.map(item => item.id_divisi);
+    const leaderDivisi = leaderDivisiData[0].divisi; // Ambil divisi pertama untuk response
+    
+    console.log('Leader Divisi IDs:', leaderDivisiIds);
+    console.log('Leader Divisi Info:', JSON.stringify(leaderDivisi, null, 2));
+
+    // Ambil semua user yang berada di divisi yang sama dengan leader
+    // Melalui relasi: User -> SdmData -> SdmJabatan -> SdmDivisi
+    // Filter berdasarkan divisi yang sama dengan leader_divisi
+    console.log('=== DEBUG TEAM MEMBERS QUERY ===');
+    console.log('Filtering by divisi IDs:', leaderDivisiIds);
+    
+    const teamMembers = await User.findAll({
+      attributes: ['id', 'nama', 'username', 'email', 'role', 'jenis_kelamin', 'nib', 'created_at', 'training_dasar', 'training_skill', 'training_leadership', 'training_lanjutan'],
+      include: [
+        {
+          model: require('../models/SdmData'),
+          as: 'sdmDataUser', // Gunakan alias yang benar
+          attributes: [
+            'id', 'nama', 'tempat_lahir', 'tanggal_lahir', 'alamat_sekarang', 
+            'no_hp', 'nama_pasangan', 'nama_anak', 'nama_orang_tua', 
+            'alamat_orang_tua', 'tanggal_bergabung', 'lama_bekerja',
+            'gaji_pokok', 'tunjangan_kinerja', 'tunjangan_posisi', 'uang_makan'
+          ],
+          required: true, // INNER JOIN untuk memastikan user memiliki sdm_data
+          include: [
+            {
+              model: require('../models/SdmJabatan'),
+              as: 'jabatan',
+              attributes: ['id', 'nama_jabatan'],
+              required: true, // INNER JOIN untuk memastikan sdm_data memiliki jabatan
+              include: [
+                {
+                  model: SdmDivisi,
+                  as: 'divisi',
+                  attributes: ['id', 'nama_divisi'],
+                  required: true, // INNER JOIN untuk memastikan jabatan memiliki divisi
+                  where: {
+                    id: {
+                      [Op.in]: leaderDivisiIds
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      where: {
+        role: {
+          [Op.in]: ['user', 'leader', 'admin'] // Include all roles in the division
+        },
+        id: {
+          [Op.ne]: userId // Exclude the leader sendiri
+        }
+      },
+      order: [
+        ['role', 'ASC'],
+        ['nama', 'ASC']
+      ]
+    });
+
+    console.log('=== DEBUG TEAM MEMBERS RESULT ===');
+    console.log('Total team members found:', teamMembers.length);
+    teamMembers.forEach((member, index) => {
+      console.log(`Member ${index + 1}:`, {
+        id: member.id,
+        nama: member.nama,
+        role: member.role,
+        divisi: member.sdmDataUser?.[0]?.jabatan?.divisi?.nama_divisi || 'No divisi'
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        teamMembers: teamMembers,
+        leaderDivisi: leaderDivisi
+      },
+      message: 'Team data retrieved successfully'
+    });
+  } catch (error) {
+    console.error('Error getting team data:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
 
 module.exports = router;

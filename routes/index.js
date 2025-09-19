@@ -15,10 +15,13 @@ const jobdeskRoutes = require('./jobdeskRoutes');
 const sopRoutes = require('./sopRoutes');
 const strukturOrganisasiRoutes = require('./strukturOrganisasi');
 const ownerSdmRoutes = require('./ownerSdm');
+const adminSdmRoutes = require('./adminSdm');
 const adminSdmDivisiRoutes = require('./adminSdmDivisi');
 // Training modules
 const adminTrainingRoutes = require('./adminTraining');
 const ownerTrainingRoutes = require('./ownerTraining');
+// KPI modules
+const kpiRoutes = require('./kpiRoutes');
 
 // Mount routes
 router.use('/health', healthRoutes);
@@ -34,9 +37,12 @@ router.use('/jobdesk', jobdeskRoutes);
 router.use('/sop', sopRoutes);
 router.use('/struktur-organisasi', strukturOrganisasiRoutes);
 router.use('/owner/sdm', ownerSdmRoutes);
+router.use('/admin/sdm', adminSdmRoutes);
 router.use('/sdm-divisi', adminSdmDivisiRoutes);
 // Training mounts
 router.use('/admin/training', adminTrainingRoutes);
 router.use('/owner/training', ownerTrainingRoutes);
+// KPI mounts
+router.use('/kpis', kpiRoutes);
 
 module.exports = router;

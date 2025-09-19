@@ -1,4 +1,5 @@
 const { KPI } = require('../models/KPI');
+const { User, SdmData, SdmJabatan, SdmDivisi, LeaderDivisi } = require('../models');
 const { Op } = require('sequelize');
 
 // KPI Controller
@@ -158,6 +159,105 @@ const kpiController = {
       });
     } catch (error) {
       console.error('Error deleting KPI:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: error.message
+      });
+    }
+  },
+
+  // Get KPIs by leader's division
+  getKPIsByLeaderDivision: async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Cari divisi leader menggunakan tabel leader_divisi
+      const leaderDivisiData = await LeaderDivisi.findAll({
+        where: {
+          id_user: userId
+        },
+        include: [
+          {
+            model: SdmDivisi,
+            as: 'divisi',
+            attributes: ['id', 'nama_divisi', 'deskripsi']
+          }
+        ]
+      });
+
+      if (!leaderDivisiData || leaderDivisiData.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Data divisi leader tidak ditemukan'
+        });
+      }
+
+      // Ambil semua divisi ID yang terkait dengan leader
+      const leaderDivisiIds = leaderDivisiData.map(item => item.id_divisi);
+      const leaderDivisi = leaderDivisiData[0].divisi; // Ambil divisi pertama untuk response
+
+      // Ambil semua KPI yang relevan untuk leader:
+      // 1. KPI divisi (divisi_id IN leaderDivisiIds)
+      // 2. KPI leader (id_user = userId)
+      // 3. KPI individu (id_user = userId atau divisi_id IN leaderDivisiIds)
+      const kpis = await KPI.findAll({
+        where: {
+          [Op.or]: [
+            // KPI divisi untuk divisi leader
+            {
+              category: 'divisi',
+              divisi_id: {
+                [Op.in]: leaderDivisiIds
+              }
+            },
+            // KPI leader untuk leader ini
+            {
+              category: 'leader',
+              id_user: userId
+            },
+            // KPI individu untuk leader ini atau divisi leader
+            {
+              category: 'individu',
+              [Op.or]: [
+                { id_user: userId },
+                { 
+                  divisi_id: {
+                    [Op.in]: leaderDivisiIds
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        include: [
+          {
+            model: User,
+            as: 'user',
+            attributes: ['id', 'nama', 'username', 'email']
+          },
+          {
+            model: SdmDivisi,
+            as: 'divisi',
+            attributes: ['id', 'nama_divisi']
+          }
+        ],
+        order: [
+          ['category', 'ASC'],
+          ['name', 'ASC']
+        ]
+      });
+
+      res.json({
+        success: true,
+        data: {
+          kpis: kpis,
+          leaderDivisi: leaderDivisi
+        },
+        message: 'KPIs retrieved successfully for leader division'
+      });
+    } catch (error) {
+      console.error('Error getting KPIs by leader division:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error',

@@ -34,6 +34,14 @@ const KPI = sequelize.define('KPI', {
       model: 'users',
       key: 'id'
     }
+  },
+  divisi_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'sdm_divisi',
+      key: 'id'
+    }
   }
 }, {
   tableName: 'kpis',
@@ -46,6 +54,9 @@ const KPI = sequelize.define('KPI', {
     },
     {
       fields: ['id_user']
+    },
+    {
+      fields: ['divisi_id']
     }
   ]
 });

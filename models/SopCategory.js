@@ -7,12 +7,12 @@ const SopCategory = sequelize.define('SopCategory', {
     primaryKey: true,
     autoIncrement: true
   },
-  divisi_id: {
+  sdm_divisi_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    comment: 'ID divisi',
+    comment: 'ID divisi SDM',
     references: {
-      model: 'sop_divisi',
+      model: 'sdm_divisi',
       key: 'id'
     }
   },
@@ -57,7 +57,7 @@ const SopCategory = sequelize.define('SopCategory', {
   updatedAt: 'updated_at',
   indexes: [
     {
-      fields: ['divisi_id']
+      fields: ['sdm_divisi_id']
     },
     {
       fields: ['nama_category']

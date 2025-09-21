@@ -89,11 +89,11 @@ exports.list = async (req, res) => {
 };
 
 // POST /api/pengajuan
-// Body: { tanggal, pengajuan, nilai, status, terkait: [usernames], attachments: [{type,url,name}] }
+// Body: { tanggal, pengajuan, nilai, status, terkait: JSON string, lampiran: JSON string }
 exports.create = async (req, res) => {
   try {
     const userId = req.user?.id;
-    const { tanggal, pengajuan, nilai = 0, status = 'pending', terkait = [], attachments = [] } = req.body || {};
+    const { tanggal, pengajuan, nilai = 0, status = 'pending', terkait = '[]', lampiran = '[]' } = req.body || {};
 
     if (!pengajuan) {
       return res.status(400).json({ success: false, message: 'Field pengajuan wajib diisi' });
@@ -101,8 +101,20 @@ exports.create = async (req, res) => {
 
     const tanggalFinal = tanggal || new Date().toISOString().slice(0,10);
     const safeStatus = ['disetujui','tidak_disetujui','pending'].includes(status) ? status : 'pending';
-    const terkaitJson = JSON.stringify(Array.isArray(terkait) ? terkait : []);
-    const lampiranJson = JSON.stringify(Array.isArray(attachments) ? attachments : []);
+    
+    // Parse JSON strings jika sudah berupa string, atau stringify jika array
+    let terkaitJson, lampiranJson;
+    try {
+      terkaitJson = typeof terkait === 'string' ? terkait : JSON.stringify(terkait || []);
+    } catch {
+      terkaitJson = '[]';
+    }
+    
+    try {
+      lampiranJson = typeof lampiran === 'string' ? lampiran : JSON.stringify(lampiran || []);
+    } catch {
+      lampiranJson = '[]';
+    }
 
     const created = await Pengajuan.create({
       tanggal: tanggalFinal,
@@ -121,6 +133,51 @@ exports.create = async (req, res) => {
     return res.status(201).json({ success: true, message: 'Pengajuan berhasil dibuat', data: obj });
   } catch (error) {
     console.error('Error creating pengajuan:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// GET /api/pengajuan/:id
+exports.getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+    const role = req.user?.role;
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan || pengajuan.status_deleted) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Owner: lihat semua. Selain owner: hanya yang dibuat sendiri atau yang mencantumkan username di 'terkait'
+    if (role !== 'owner') {
+      let currentUsername = null;
+      if (userId) {
+        try {
+          const u = await User.findByPk(userId, { attributes: ['id','username'] });
+          currentUsername = u?.username || null;
+        } catch {}
+      }
+
+      if (currentUsername) {
+        const terkaitArray = JSON.parse(pengajuan.terkait || '[]');
+        if (pengajuan.created_by !== userId && !terkaitArray.includes(currentUsername)) {
+          return res.status(403).json({ success: false, message: 'Tidak diizinkan mengakses pengajuan ini' });
+        }
+      } else {
+        if (pengajuan.created_by !== userId) {
+          return res.status(403).json({ success: false, message: 'Tidak diizinkan mengakses pengajuan ini' });
+        }
+      }
+    }
+
+    const obj = pengajuan.toJSON();
+    obj.terkait = JSON.parse(obj.terkait || '[]');
+    obj.lampiran = JSON.parse(obj.lampiran || '[]');
+
+    return res.json({ success: true, data: obj });
+  } catch (error) {
+    console.error('Error getting pengajuan by ID:', error);
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };

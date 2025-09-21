@@ -24,13 +24,14 @@ const SdmJabatan = require('./SdmJabatan');
 const SdmData = require('./SdmData');
 const JobdeskDepartment = require('./JobdeskDepartment');
 const JobdeskPosition = require('./JobdeskPosition');
-const SopDivisi = require('./SopDivisi');
 const SopCategory = require('./SopCategory');
 const SopStep = require('./SopStep');
 const StrukturOrganisasi = require('./StrukturOrganisasi');
 const Pengajuan = require('./Pengajuan');
 const TugasSaya = require('./TugasSaya');
+const SlipGaji = require('./SlipGaji');
 const VideoManage = require('./VideoManage');
+const SopDivisi = require('./SopDivisi');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -159,11 +160,9 @@ JobdeskDepartment.belongsTo(SdmDivisi, { foreignKey: 'divisi_id', as: 'divisi' }
 JobdeskDepartment.hasMany(JobdeskPosition, { foreignKey: 'department_id', as: 'positions' });
 JobdeskPosition.belongsTo(JobdeskDepartment, { foreignKey: 'department_id', as: 'department' });
 
-// SOP associations
-User.hasMany(SopDivisi, { foreignKey: 'created_by', as: 'sopDivisiCreated' });
-User.hasMany(SopDivisi, { foreignKey: 'updated_by', as: 'sopDivisiUpdated' });
-SopDivisi.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
-SopDivisi.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
+// SOP associations - Updated to use sdm_divisi
+SdmDivisi.hasMany(SopCategory, { foreignKey: 'sdm_divisi_id', as: 'sopCategories' });
+SopCategory.belongsTo(SdmDivisi, { foreignKey: 'sdm_divisi_id', as: 'sdmDivisi' });
 
 User.hasMany(SopCategory, { foreignKey: 'created_by', as: 'sopCategoryCreated' });
 User.hasMany(SopCategory, { foreignKey: 'updated_by', as: 'sopCategoryUpdated' });
@@ -175,8 +174,6 @@ User.hasMany(SopStep, { foreignKey: 'updated_by', as: 'sopStepUpdated' });
 SopStep.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 SopStep.belongsTo(User, { foreignKey: 'updated_by', as: 'updater' });
 
-SopDivisi.hasMany(SopCategory, { foreignKey: 'divisi_id', as: 'categories' });
-SopCategory.belongsTo(SopDivisi, { foreignKey: 'divisi_id', as: 'divisi' });
 
 SopCategory.hasMany(SopStep, { foreignKey: 'category_id', as: 'steps' });
 SopStep.belongsTo(SopCategory, { foreignKey: 'category_id', as: 'category' });
@@ -200,6 +197,12 @@ User.hasMany(TugasSaya, { foreignKey: 'created_by', as: 'tugasSayaCreated', cons
 TugasSaya.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
 SdmDivisi.hasMany(TugasSaya, { foreignKey: 'id_divisi', as: 'tugasDivisi', constraints: false });
 TugasSaya.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi', constraints: false });
+
+// SlipGaji associations
+User.hasMany(SlipGaji, { foreignKey: 'id_user', as: 'slipGajiUser' });
+User.hasMany(SlipGaji, { foreignKey: 'created_by', as: 'slipGajiCreated' });
+SlipGaji.belongsTo(User, { foreignKey: 'id_user', as: 'user' });
+SlipGaji.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
 // VideoManage associations
 User.hasMany(VideoManage, { foreignKey: 'uploaded_by', as: 'uploadedVideos', constraints: false });
@@ -232,11 +235,11 @@ module.exports = {
   SdmData,
   JobdeskDepartment,
   JobdeskPosition,
-  SopDivisi,
   SopCategory,
   SopStep,
   StrukturOrganisasi,
   Pengajuan,
   TugasSaya,
+  SlipGaji,
   VideoManage
 };

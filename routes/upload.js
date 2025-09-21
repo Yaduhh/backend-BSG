@@ -872,7 +872,87 @@ router.post(
   }
 );
 
-// ... (rest of the code remains the same)
+// Configure storage for SLIP GAJI images
+const slipGajiStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, "../uploads");
+    const slipGajiDir = path.join(uploadsDir, "slip-gaji");
+
+    // Create slip-gaji directory if it doesn't exist
+    if (!require("fs").existsSync(slipGajiDir)) {
+      require("fs").mkdirSync(slipGajiDir, { recursive: true });
+    }
+
+    cb(null, slipGajiDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, "slip-gaji-" + uniqueSuffix + ext);
+  },
+});
+
+// File filter for SLIP GAJI images
+const slipGajiFileFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("image/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only image files are allowed for SLIP GAJI"), false);
+  }
+};
+
+// Configure multer for SLIP GAJI
+const slipGajiUpload = multer({
+  storage: slipGajiStorage,
+  fileFilter: slipGajiFileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit for slip gaji images
+  },
+});
+
+// Upload SLIP GAJI image (single file)
+router.post(
+  "/slip-gaji",
+  authenticateToken,
+  slipGajiUpload.single("file"),
+  (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({
+          success: false,
+          message: "No image uploaded",
+        });
+      }
+
+      // Create relative path for database storage
+      const relativePath = path.relative(
+        path.join(__dirname, "../uploads"),
+        req.file.path
+      );
+      const fileInfo = {
+        originalName: req.file.originalname,
+        filename: req.file.filename,
+        path: relativePath.replace(/\\/g, "/"), // Convert Windows path to URL format
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        url: `/uploads/${relativePath.replace(/\\/g, "/")}`, // URL for accessing the file
+      };
+
+      return res.json({
+        success: true,
+        message: "Slip gaji image uploaded successfully",
+        data: fileInfo,
+      });
+    } catch (error) {
+      console.error("❌ Error uploading slip gaji image:", error);
+      return res.status(500).json({
+        success: false,
+        message: "Error uploading slip gaji image",
+      });
+    }
+  }
+);
 
 // Error handling middleware
 router.use((err, req, res, next) => {
@@ -951,6 +1031,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: "Only image files are allowed for KPI uploads.",
+    });
+  }
+
+  if (err.message === "Only image files are allowed for SLIP GAJI") {
+    return res.status(400).json({
+      success: false,
+      message: "Only image files are allowed for SLIP GAJI uploads.",
     });
   }
 

@@ -114,6 +114,8 @@ app.use('/api/admin/training', adminTrainingRoutes);
 app.use('/api/admin/sdm', adminSdmRoutes);
 app.use('/api/admin/sdm/divisi', adminSdmDivisiRoutes);
 app.use('/api/owner/sdm', ownerSdmRoutes);
+app.use('/api/sdm/slip-gaji', require('./routes/slipGajiRoutes'));
+app.use('/api/admin/slip-gaji', require('./routes/slipGajiRoutes'));
 app.use('/api/admin/data-aset', adminDataAsetRoutes);
 app.use('/api/owner/data-aset', ownerDataAsetRoutes);
 app.use('/api/admin/data-supplier', adminDataSupplierRoutes);

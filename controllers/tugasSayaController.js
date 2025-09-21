@@ -96,3 +96,159 @@ exports.create = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error' })
   }
 }
+
+// GET /api/leader/tugas-saya/:id
+exports.getById = async (req, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const { id } = req.params
+    const tugas = await TugasSaya.findOne({
+      where: {
+        id: id,
+        created_by: userId, // Pastikan hanya bisa akses tugas sendiri
+        status_deleted: false
+      },
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] },
+        { model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }
+      ]
+    })
+
+    if (!tugas) {
+      return res.status(404).json({ success: false, message: 'Tugas tidak ditemukan' })
+    }
+
+    const obj = tugas.toJSON()
+    const creator = obj.creator || {}
+    const creatorName = creator.name || creator.nama || creator.full_name || creator.username || '-'
+
+    return res.json({
+      success: true,
+      data: {
+        id: obj.id,
+        tugas_saya: obj.tugas_saya,
+        created_by: obj.created_by,
+        created_by_name: creatorName,
+        id_divisi: obj.id_divisi,
+        divisi_nama: obj.divisi?.nama_divisi || '-',
+        created_at: obj.created_at,
+        updated_at: obj.updated_at,
+      }
+    })
+  } catch (error) {
+    console.error('Error getting TugasSaya by ID:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
+
+// PUT /api/leader/tugas-saya/:id
+exports.update = async (req, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const { id } = req.params
+    const { tugas_saya, id_divisi } = req.body || {}
+
+    // Validasi input
+    if (tugas_saya !== undefined && (!tugas_saya || String(tugas_saya).trim().length === 0)) {
+      return res.status(400).json({ success: false, message: 'Field tugas_saya tidak boleh kosong' })
+    }
+
+    // Cari tugas yang dimiliki user
+    const tugas = await TugasSaya.findOne({
+      where: {
+        id: id,
+        created_by: userId,
+        status_deleted: false
+      }
+    })
+
+    if (!tugas) {
+      return res.status(404).json({ success: false, message: 'Tugas tidak ditemukan' })
+    }
+
+    // Update data
+    const updateData = {}
+    if (tugas_saya !== undefined) {
+      updateData.tugas_saya = String(tugas_saya).trim()
+    }
+    if (id_divisi !== undefined) {
+      updateData.id_divisi = id_divisi !== null && String(id_divisi).trim() !== '' ? Number(id_divisi) : null
+    }
+
+    await tugas.update(updateData)
+
+    // Fetch updated data with relations
+    const updatedTugas = await TugasSaya.findByPk(tugas.id, {
+      include: [
+        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] },
+        { model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }
+      ]
+    })
+
+    const obj = updatedTugas.toJSON()
+    const creator = obj.creator || {}
+    const creatorName = creator.name || creator.nama || creator.full_name || creator.username || '-'
+
+    return res.json({
+      success: true,
+      message: 'Tugas berhasil diperbarui',
+      data: {
+        id: obj.id,
+        tugas_saya: obj.tugas_saya,
+        created_by: obj.created_by,
+        created_by_name: creatorName,
+        id_divisi: obj.id_divisi,
+        divisi_nama: obj.divisi?.nama_divisi || '-',
+        created_at: obj.created_at,
+        updated_at: obj.updated_at,
+      }
+    })
+  } catch (error) {
+    console.error('Error updating TugasSaya:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}
+
+// DELETE /api/leader/tugas-saya/:id
+exports.delete = async (req, res) => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const { id } = req.params
+
+    // Cari tugas yang dimiliki user
+    const tugas = await TugasSaya.findOne({
+      where: {
+        id: id,
+        created_by: userId,
+        status_deleted: false
+      }
+    })
+
+    if (!tugas) {
+      return res.status(404).json({ success: false, message: 'Tugas tidak ditemukan' })
+    }
+
+    // Soft delete
+    await tugas.update({ status_deleted: true })
+
+    return res.json({
+      success: true,
+      message: 'Tugas berhasil dihapus'
+    })
+  } catch (error) {
+    console.error('Error deleting TugasSaya:', error)
+    return res.status(500).json({ success: false, message: 'Internal server error' })
+  }
+}

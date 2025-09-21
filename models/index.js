@@ -65,10 +65,16 @@ Pengumuman.belongsTo(User, { foreignKey: 'penulis_id', as: 'penulis' });
 // TimMerah associations
 User.hasMany(TimMerah, { foreignKey: 'created_by', as: 'timMerahEntries' });
 TimMerah.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+// Pegawai yang dikenai Tim Merah
+User.hasMany(TimMerah, { foreignKey: 'user_id', as: 'timMerahEmployees' });
+TimMerah.belongsTo(User, { foreignKey: 'user_id', as: 'employee' });
 
 // TimBiru associations
 User.hasMany(TimBiru, { foreignKey: 'created_by', as: 'timBiruEntries' });
 TimBiru.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+// Pegawai yang diberi Tim Biru
+User.hasMany(TimBiru, { foreignKey: 'user_id', as: 'timBiruEmployees' });
+TimBiru.belongsTo(User, { foreignKey: 'user_id', as: 'employee' });
 
 // DataAset associations
 User.hasMany(DataAset, { foreignKey: 'created_by', as: 'dataAsetEntries' });

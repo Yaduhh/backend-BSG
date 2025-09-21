@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { TimMerah, TimBiru, User } = require('../models');
+const { TimMerah, TimBiru, User, SdmData, SdmJabatan, SdmDivisi } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 
 // ===== OWNER TIM MERAH ROUTES (READ ONLY) =====
@@ -24,6 +24,11 @@ router.get('/merah', authenticateToken, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'email']
+        },
+        {
+          model: User,
+          as: 'employee',
+          attributes: ['id', 'nama', 'email']
         }
       ],
       order: [['created_at', 'DESC']],
@@ -31,9 +36,32 @@ router.get('/merah', authenticateToken, async (req, res) => {
       offset: parseInt(offset)
     });
 
+    // Override nama/divisi/posisi dari SDM
+    const userIds = timMerah.rows.map(r => r.user_id).filter(Boolean);
+    const sdms = await SdmData.findAll({
+      where: { user_id: userIds },
+      include: [{
+        model: SdmJabatan,
+        as: 'jabatan',
+        include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
+        attributes: ['id', 'nama_jabatan', 'divisi_id']
+      }]
+    });
+    const sdmMap = new Map(sdms.map(s => [s.user_id, s]));
+    const data = timMerah.rows.map(r => {
+      const plain = r.toJSON ? r.toJSON() : r;
+      const sdm = sdmMap.get(r.user_id);
+      if (sdm) {
+        plain.nama = sdm.nama || plain.nama;
+        plain.posisi = sdm.jabatan?.nama_jabatan || '-';
+        plain.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+      }
+      return plain;
+    });
+
     res.json({
       success: true,
-      data: timMerah.rows,
+      data,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(timMerah.count / limit),
@@ -67,6 +95,11 @@ router.get('/merah/:id', authenticateToken, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'email']
+        },
+        {
+          model: User,
+          as: 'employee',
+          attributes: ['id', 'nama', 'email']
         }
       ]
     });
@@ -78,10 +111,24 @@ router.get('/merah/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      data: timMerah
-    });
+    let data = timMerah.toJSON ? timMerah.toJSON() : timMerah;
+    if (timMerah.user_id) {
+      const sdm = await SdmData.findOne({
+        where: { user_id: timMerah.user_id },
+        include: [{
+          model: SdmJabatan,
+          as: 'jabatan',
+          include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
+          attributes: ['id', 'nama_jabatan', 'divisi_id']
+        }]
+      });
+      if (sdm) {
+        data.nama = sdm.nama || data.nama;
+        data.posisi = sdm.jabatan?.nama_jabatan || '-';
+        data.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+      }
+    }
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching tim merah by ID for owner:', error);
     res.status(500).json({
@@ -112,6 +159,11 @@ router.get('/biru', authenticateToken, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'email']
+        },
+        {
+          model: User,
+          as: 'employee',
+          attributes: ['id', 'nama', 'email']
         }
       ],
       order: [['created_at', 'DESC']],
@@ -119,9 +171,31 @@ router.get('/biru', authenticateToken, async (req, res) => {
       offset: parseInt(offset)
     });
 
+    const userIdsB = timBiru.rows.map(r => r.user_id).filter(Boolean);
+    const sdmsB = await SdmData.findAll({
+      where: { user_id: userIdsB },
+      include: [{
+        model: SdmJabatan,
+        as: 'jabatan',
+        include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
+        attributes: ['id', 'nama_jabatan', 'divisi_id']
+      }]
+    });
+    const sdmMapB = new Map(sdmsB.map(s => [s.user_id, s]));
+    const dataB = timBiru.rows.map(r => {
+      const plain = r.toJSON ? r.toJSON() : r;
+      const sdm = sdmMapB.get(r.user_id);
+      if (sdm) {
+        plain.nama = sdm.nama || plain.nama;
+        plain.posisi = sdm.jabatan?.nama_jabatan || '-';
+        plain.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+      }
+      return plain;
+    });
+
     res.json({
       success: true,
-      data: timBiru.rows,
+      data: dataB,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(timBiru.count / limit),
@@ -155,6 +229,11 @@ router.get('/biru/:id', authenticateToken, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'email']
+        },
+        {
+          model: User,
+          as: 'employee',
+          attributes: ['id', 'nama', 'email']
         }
       ]
     });
@@ -166,10 +245,24 @@ router.get('/biru/:id', authenticateToken, async (req, res) => {
       });
     }
 
-    res.json({
-      success: true,
-      data: timBiru
-    });
+    let data = timBiru.toJSON ? timBiru.toJSON() : timBiru;
+    if (timBiru.user_id) {
+      const sdm = await SdmData.findOne({
+        where: { user_id: timBiru.user_id },
+        include: [{
+          model: SdmJabatan,
+          as: 'jabatan',
+          include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
+          attributes: ['id', 'nama_jabatan', 'divisi_id']
+        }]
+      });
+      if (sdm) {
+        data.nama = sdm.nama || data.nama;
+        data.posisi = sdm.jabatan?.nama_jabatan || '-';
+        data.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+      }
+    }
+    res.json({ success: true, data });
   } catch (error) {
     console.error('Error fetching tim biru by ID for owner:', error);
     res.status(500).json({

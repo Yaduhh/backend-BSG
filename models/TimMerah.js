@@ -12,16 +12,6 @@ const TimMerah = sequelize.define('TimMerah', {
     allowNull: false,
     comment: 'Nama karyawan'
   },
-  divisi: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    comment: 'Divisi/cabang tempat kerja'
-  },
-  posisi: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    comment: 'Posisi/jabatan karyawan'
-  },
   status: {
     type: DataTypes.ENUM('SP1', 'SP2', 'SP3'),
     allowNull: false,
@@ -31,6 +21,17 @@ const TimMerah = sequelize.define('TimMerah', {
     type: DataTypes.TEXT,
     allowNull: true,
     comment: 'Keterangan pelanggaran'
+  },
+
+  // Relasi ke user pegawai yang menjadi anggota tim merah
+  user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    },
+    comment: 'ID user pegawai yang masuk tim merah'
   },
 
   created_by: {
@@ -52,14 +53,14 @@ const TimMerah = sequelize.define('TimMerah', {
       fields: ['nama']
     },
     {
-      fields: ['divisi']
-    },
-    {
       fields: ['status']
     },
 
     {
       fields: ['created_by']
+    },
+    {
+      fields: ['user_id']
     }
   ]
 });
@@ -68,6 +69,11 @@ TimMerah.associate = (models) => {
   TimMerah.belongsTo(models.User, {
     foreignKey: 'created_by',
     as: 'creator'
+  });
+  // Pegawai yang menjadi anggota tim merah
+  TimMerah.belongsTo(models.User, {
+    foreignKey: 'user_id',
+    as: 'employee'
   });
 };
 

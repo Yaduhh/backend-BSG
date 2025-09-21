@@ -6,6 +6,9 @@ const pengajuanController = require('../controllers/pengajuanController');
 // GET /api/pengajuan
 router.get('/', authenticateToken, pengajuanController.list);
 
+// GET /api/pengajuan/:id
+router.get('/:id', authenticateToken, pengajuanController.getById);
+
 // POST /api/pengajuan
 router.post('/', authenticateToken, pengajuanController.create);
 

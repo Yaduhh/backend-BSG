@@ -1,12 +1,46 @@
-const { SopDivisi, SopCategory, SopStep } = require('../models');
+const { User, SdmDivisi, SdmJabatan, SdmData, SopCategory, SopStep } = require('../models');
 
-// Get all divisions
+// Simple in-memory cache
+const cache = {
+  divisions: null,
+  sopStructure: null,
+  lastUpdate: null,
+  ttl: 5 * 60 * 1000 // 5 minutes
+};
+
+// Helper function to check if cache is valid
+const isCacheValid = () => {
+  return cache.lastUpdate && (Date.now() - cache.lastUpdate) < cache.ttl;
+};
+
+// Helper function to clear cache
+const clearCache = () => {
+  cache.divisions = null;
+  cache.sopStructure = null;
+  cache.lastUpdate = null;
+};
+
+// Get all divisions - Updated to use SdmDivisi with caching
 const getAllDivisions = async (req, res) => {
   try {
-    const divisions = await SopDivisi.findAll({
+    // Check cache first
+    if (isCacheValid() && cache.divisions) {
+      return res.json({
+        success: true,
+        data: cache.divisions,
+        cached: true
+      });
+    }
+
+    const divisions = await SdmDivisi.findAll({
       where: { status_aktif: true },
+      attributes: ['id', 'nama_divisi', 'keterangan'],
       order: [['nama_divisi', 'ASC']]
     });
+
+    // Update cache
+    cache.divisions = divisions;
+    cache.lastUpdate = Date.now();
 
     res.json({
       success: true,
@@ -49,47 +83,55 @@ const getCategoriesByDivision = async (req, res) => {
   }
 };
 
-// Get complete SOP structure
+// Get complete SOP structure with caching
 const getCompleteSopStructure = async (req, res) => {
   try {
-    console.log('🔍 ===== BACKEND SOP API CALLED =====');
-    console.log('🔍 Request headers:', req.headers);
-    console.log('🔍 Request method:', req.method);
-    console.log('🔍 Request URL:', req.url);
-    
-    const divisions = await SopDivisi.findAll({
+    // Check cache first
+    if (isCacheValid() && cache.sopStructure) {
+      return res.json({
+        success: true,
+        data: cache.sopStructure,
+        cached: true
+      });
+    }
+
+    const divisions = await SdmDivisi.findAll({
       where: { status_aktif: true },
+      attributes: ['id', 'nama_divisi', 'keterangan'],
       include: [
         {
           model: SopCategory,
-          as: 'categories',
+          as: 'sopCategories',
           where: { status_aktif: true },
           required: false,
+          attributes: ['id', 'nama_category', 'keterangan', 'sdm_divisi_id'],
           include: [
             {
               model: SopStep,
               as: 'steps',
-              required: false
+              required: false,
+              attributes: ['id', 'judul_procedure', 'category_id']
             }
           ]
         }
       ],
       order: [
         ['nama_divisi', 'ASC'],
-        [{ model: SopCategory, as: 'categories' }, 'nama_category', 'ASC'],
-        [{ model: SopCategory, as: 'categories' }, { model: SopStep, as: 'steps' }, 'judul_procedure', 'ASC']
+        [{ model: SopCategory, as: 'sopCategories' }, 'nama_category', 'ASC'],
+        [{ model: SopCategory, as: 'sopCategories' }, { model: SopStep, as: 'steps' }, 'judul_procedure', 'ASC']
       ]
     });
 
-    console.log('📦 Found divisions:', divisions.length);
-    console.log('📦 Divisions data:', JSON.stringify(divisions, null, 2));
+    // Update cache
+    cache.sopStructure = divisions;
+    cache.lastUpdate = Date.now();
 
     res.json({
       success: true,
       data: divisions
     });
   } catch (error) {
-    console.error('❌ Error getting complete SOP structure:', error);
+    console.error('Error getting complete SOP structure:', error);
     res.status(500).json({
       success: false,
       message: 'Gagal mengambil struktur SOP lengkap',
@@ -98,45 +140,22 @@ const getCompleteSopStructure = async (req, res) => {
   }
 };
 
-// Create division
-const createDivision = async (req, res) => {
-  try {
-    const { nama_divisi, keterangan } = req.body;
-    const created_by = req.user.id;
-
-    const division = await SopDivisi.create({
-      nama_divisi,
-      keterangan,
-      created_by
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Divisi berhasil dibuat',
-      data: division
-    });
-  } catch (error) {
-    console.error('Error creating division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal membuat divisi',
-      error: error.message
-    });
-  }
-};
 
 // Create category
 const createCategory = async (req, res) => {
   try {
-    const { divisi_id, nama_category, keterangan } = req.body;
+    const { sdm_divisi_id, nama_category, keterangan } = req.body;
     const created_by = req.user.id;
 
     const category = await SopCategory.create({
-      divisi_id,
+      sdm_divisi_id,
       nama_category,
       keterangan,
       created_by
     });
+
+    // Clear cache after creating
+    clearCache();
 
     res.status(201).json({
       success: true,
@@ -165,6 +184,9 @@ const createStep = async (req, res) => {
       created_by
     });
 
+    // Clear cache after creating
+    clearCache();
+
     res.status(201).json({
       success: true,
       message: 'Step berhasil dibuat',
@@ -181,47 +203,12 @@ const createStep = async (req, res) => {
 };
 
 
-// Update division
-const updateDivision = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { nama_divisi, keterangan } = req.body;
-    const updated_by = req.user.id;
-
-    const division = await SopDivisi.findByPk(id);
-    if (!division) {
-      return res.status(404).json({
-        success: false,
-        message: 'Divisi tidak ditemukan'
-      });
-    }
-
-    await division.update({
-      nama_divisi,
-      keterangan,
-      updated_by
-    });
-
-    res.json({
-      success: true,
-      message: 'Divisi berhasil diupdate',
-      data: division
-    });
-  } catch (error) {
-    console.error('Error updating division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal mengupdate divisi',
-      error: error.message
-    });
-  }
-};
 
 // Update category
 const updateCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nama_category, keterangan } = req.body;
+    const { nama_category, keterangan, sdm_divisi_id } = req.body;
     const updated_by = req.user.id;
 
     const category = await SopCategory.findByPk(id);
@@ -232,11 +219,26 @@ const updateCategory = async (req, res) => {
       });
     }
 
+    // Validate sdm_divisi_id if provided
+    if (sdm_divisi_id) {
+      const division = await SdmDivisi.findByPk(sdm_divisi_id);
+      if (!division) {
+        return res.status(400).json({
+          success: false,
+          message: 'Divisi tidak ditemukan'
+        });
+      }
+    }
+
     await category.update({
       nama_category,
       keterangan,
+      sdm_divisi_id: sdm_divisi_id || category.sdm_divisi_id,
       updated_by
     });
+
+    // Clear cache after updating
+    clearCache();
 
     res.json({
       success: true,
@@ -275,6 +277,9 @@ const updateStep = async (req, res) => {
       updated_by
     });
 
+    // Clear cache after updating
+    clearCache();
+
     res.json({
       success: true,
       message: 'Step berhasil diupdate',
@@ -290,38 +295,6 @@ const updateStep = async (req, res) => {
   }
 };
 
-// Soft delete division
-const deleteDivision = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updated_by = req.user.id;
-
-    const division = await SopDivisi.findByPk(id);
-    if (!division) {
-      return res.status(404).json({
-        success: false,
-        message: 'Divisi tidak ditemukan'
-      });
-    }
-
-    await division.update({
-      status_aktif: false,
-      updated_by
-    });
-
-    res.json({
-      success: true,
-      message: 'Divisi berhasil dihapus'
-    });
-  } catch (error) {
-    console.error('Error deleting division:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menghapus divisi',
-      error: error.message
-    });
-  }
-};
 
 // Soft delete category
 const deleteCategory = async (req, res) => {
@@ -342,6 +315,9 @@ const deleteCategory = async (req, res) => {
       updated_by
     });
 
+    // Clear cache after deleting
+    clearCache();
+
     res.json({
       success: true,
       message: 'Kategori berhasil dihapus'
@@ -357,11 +333,10 @@ const deleteCategory = async (req, res) => {
 };
 
 
-// Soft delete step
+// Delete step
 const deleteStep = async (req, res) => {
   try {
     const { id } = req.params;
-    const updated_by = req.user.id;
 
     const step = await SopStep.findByPk(id);
     if (!step) {
@@ -371,10 +346,10 @@ const deleteStep = async (req, res) => {
       });
     }
 
-    await step.update({
-      status_aktif: false,
-      updated_by
-    });
+    await step.destroy();
+
+    // Clear cache after deleting
+    clearCache();
 
     res.json({
       success: true,
@@ -390,17 +365,162 @@ const deleteStep = async (req, res) => {
   }
 };
 
+// Get SOP berdasarkan divisi user yang login
+const getSopByUserDivisi = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    // Get user divisi info melalui SdmData -> SdmJabatan -> SdmDivisi
+    const user = await User.findByPk(userId, {
+      include: [{
+        model: SdmData,
+        as: 'sdmDataUser',
+        attributes: ['id', 'user_id', 'jabatan_id'],
+        include: [{
+          model: SdmJabatan,
+          as: 'jabatan',
+          attributes: ['id', 'nama_jabatan', 'divisi_id'],
+          include: [{
+            model: SdmDivisi,
+            as: 'divisi',
+            attributes: ['id', 'nama_divisi', 'keterangan']
+          }]
+        }]
+      }]
+    });
+
+    // Check if user has divisi data
+    if (!user || !user.sdmDataUser || user.sdmDataUser.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak memiliki data divisi. Silakan hubungi admin untuk mengatur divisi Anda.'
+      });
+    }
+
+    // Get the first sdm_data record (assuming one user has one divisi)
+    const sdmData = user.sdmDataUser[0];
+    if (!sdmData.jabatan || !sdmData.jabatan.divisi) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak memiliki jabatan atau divisi yang valid'
+      });
+    }
+
+    const divisiId = sdmData.jabatan.divisi.id;
+    const divisiInfo = sdmData.jabatan.divisi;
+    
+    // Get SOP categories for this divisi
+    const sopCategories = await SopCategory.findAll({
+      where: { sdm_divisi_id: divisiId },
+      attributes: ['id', 'nama_category', 'keterangan', 'sdm_divisi_id'],
+      include: [{
+        model: SopStep,
+        as: 'steps',
+        attributes: ['id', 'judul_procedure', 'category_id'],
+        order: [['id', 'ASC']]
+      }],
+      order: [['nama_category', 'ASC']]
+    });
+
+    // Format response
+    const formattedData = sopCategories.map(category => ({
+      id: category.id,
+      nama_category: category.nama_category,
+      keterangan: category.keterangan,
+      divisi_nama: divisiInfo.nama_divisi,
+      steps: category.steps || []
+    }));
+
+    res.json({
+      success: true,
+      data: formattedData,
+      divisi_info: {
+        id: divisiInfo.id,
+        nama_divisi: divisiInfo.nama_divisi,
+        keterangan: divisiInfo.keterangan
+      },
+      message: formattedData.length === 0 ? 
+        `Belum ada SOP untuk divisi ${divisiInfo.nama_divisi}. Silakan hubungi admin untuk menambahkan SOP divisi Anda.` : 
+        null
+    });
+  } catch (error) {
+    console.error('Error fetching SOP by user divisi:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil data SOP',
+      error: error.message
+    });
+  }
+};
+
+// Get SOP berdasarkan divisi tertentu
+const getSopByDivisi = async (req, res) => {
+  try {
+    const { divisiId } = req.params;
+    
+    // Get divisi info
+    const divisi = await SdmDivisi.findByPk(divisiId, {
+      attributes: ['id', 'nama_divisi', 'keterangan']
+    });
+
+    if (!divisi) {
+      return res.status(404).json({
+        success: false,
+        message: 'Divisi tidak ditemukan'
+      });
+    }
+
+    // Get SOP categories for this divisi
+    const sopCategories = await SopCategory.findAll({
+      where: { sdm_divisi_id: divisiId },
+      attributes: ['id', 'nama_category', 'keterangan', 'sdm_divisi_id'],
+      include: [{
+        model: SopStep,
+        as: 'steps',
+        attributes: ['id', 'judul_procedure', 'category_id'],
+        order: [['id', 'ASC']]
+      }],
+      order: [['nama_category', 'ASC']]
+    });
+
+    // Format response
+    const formattedData = sopCategories.map(category => ({
+      id: category.id,
+      nama_category: category.nama_category,
+      keterangan: category.keterangan,
+      divisi_nama: divisi.nama_divisi,
+      steps: category.steps || []
+    }));
+
+    res.json({
+      success: true,
+      data: formattedData,
+      divisi_info: {
+        id: divisi.id,
+        nama_divisi: divisi.nama_divisi,
+        keterangan: divisi.keterangan
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching SOP by divisi:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengambil data SOP',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   getAllDivisions,
   getCategoriesByDivision,
   getCompleteSopStructure,
-  createDivision,
   createCategory,
   createStep,
-  updateDivision,
   updateCategory,
   updateStep,
-  deleteDivision,
   deleteCategory,
-  deleteStep
+  deleteStep,
+  getSopByUserDivisi,
+  getSopByDivisi
 };

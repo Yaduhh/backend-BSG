@@ -2,8 +2,10 @@ const express = require("express");
 const router = express.Router();
 const path = require("path");
 const multer = require("multer");
+const fs = require("fs");
 const { uploadMultiple, handleUploadError } = require("../middleware/upload");
 const { authenticateToken } = require("../middleware/auth");
+const { VideoManage } = require('../models');
 
 // Configure storage for POSKAS images
 const poskasStorage = multer.diskStorage({
@@ -24,6 +26,217 @@ const poskasStorage = multer.diskStorage({
     const ext = path.extname(file.originalname);
     cb(null, "poskas-" + uniqueSuffix + ext);
   },
+});
+
+// Configure storage for VIDEO-MANAGE (per role admin/leader)
+const videoManageStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadsDir = path.join(__dirname, "../uploads");
+    const baseDir = path.join(uploadsDir, "video-manage");
+    // role dari param route (admin/leader)
+    const role = (req.params && req.params.role) || 'general';
+    const roleDir = path.join(baseDir, role);
+    if (!fs.existsSync(roleDir)) {
+      fs.mkdirSync(roleDir, { recursive: true });
+    }
+    cb(null, roleDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, `video-${uniqueSuffix}${ext}`);
+  },
+});
+
+const videoManageUpload = multer({
+  storage: videoManageStorage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only video files are allowed for VIDEO MANAGE'), false);
+    }
+  },
+  limits: {
+    fileSize: 200 * 1024 * 1024, // 200MB limit
+    files: 1,
+  },
+});
+
+// Helper to update config.json with current active video per role
+const updateVideoManageConfig = (role, filePath) => {
+  const uploadsDir = path.join(__dirname, "../uploads");
+  const baseDir = path.join(uploadsDir, "video-manage");
+  if (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });
+  const configPath = path.join(baseDir, 'config.json');
+  let config = {};
+  if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, 'utf8')) || {};
+    } catch (e) {
+      config = {};
+    }
+  }
+  // compute relative path and url
+  const relativePath = path.relative(uploadsDir, filePath).replace(/\\/g, '/');
+  config[role] = {
+    path: relativePath,
+    url: `/uploads/${relativePath}`,
+    filename: path.basename(filePath),
+    uploadedAt: new Date().toISOString(),
+  };
+  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  return config[role];
+}
+
+// GET current video for role
+router.get('/video-manage/:role', authenticateToken, async (req, res) => {
+  try {
+    const role = req.params.role;
+    // Coba ambil dari DB lebih dulu
+    const active = await VideoManage.findOne({ where: { role, active: true }, order: [['created_at', 'DESC']] });
+    if (active) {
+      return res.json({ success: true, data: {
+        id: active.id,
+        role: active.role,
+        url: active.url,
+        path: active.path,
+        filename: active.filename,
+        uploadedAt: active.created_at
+      }});
+    }
+    // Fallback ke config.json jika belum ada di DB
+    const uploadsDir = path.join(__dirname, "../uploads");
+    const baseDir = path.join(uploadsDir, "video-manage");
+    const configPath = path.join(baseDir, 'config.json');
+    if (!fs.existsSync(configPath)) {
+      return res.json({ success: true, data: null });
+    }
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8')) || {};
+    const data = config[role] || null;
+    return res.json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Error reading current video:', error);
+    return res.status(500).json({ success: false, message: 'Error reading current video' });
+  }
+});
+
+// POST upload new video for role (field name: 'video')
+router.post('/video-manage/:role', authenticateToken, (req, res) => {
+  const role = req.params.role;
+  // batasi target role yang valid
+  if (!['admin', 'leader'].includes(role)) {
+    return res.status(400).json({ success: false, message: 'Invalid role' });
+  }
+  // hanya user dengan role admin atau owner yang boleh upload
+  const userRole = req.user?.role;
+  if (!['admin', 'owner'].includes(userRole)) {
+    return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
+  }
+
+  videoManageUpload.single('video')(req, res, async (err) => {
+    if (err instanceof multer.MulterError) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ success: false, message: 'File too large. Maximum size is 200MB.' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ success: false, message: 'Only one video allowed per upload.' });
+      }
+      return res.status(400).json({ success: false, message: 'Upload error: ' + err.message });
+    } else if (err) {
+      return res.status(400).json({ success: false, message: err.message || 'Only video files are allowed.' });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No video uploaded' });
+      }
+      // Update config.json untuk kompatibilitas
+      const info = updateVideoManageConfig(role, req.file.path);
+      // Simpan ke DB dan jadikan aktif, nonaktifkan yang lain pada role sama
+      await VideoManage.update({ active: false }, { where: { role } });
+      const created = await VideoManage.create({
+        role,
+        filename: req.file.filename,
+        path: info.path,
+        url: info.url,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        active: true,
+        uploaded_by: req.user?.id || null
+      });
+      return res.json({ success: true, message: 'Video uploaded successfully', data: {
+        id: created.id,
+        role: created.role,
+        url: created.url,
+        path: created.path,
+        filename: created.filename,
+        uploadedAt: created.created_at
+      }});
+    } catch (error) {
+      console.error('❌ Error uploading video-manage:', error);
+      return res.status(500).json({ success: false, message: 'Error uploading video' });
+    }
+  });
+});
+
+// LIST videos per role (admin/owner only)
+router.get('/video-manage/:role/list', authenticateToken, async (req, res) => {
+  try {
+    if (!['admin', 'owner'].includes(req.user?.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
+    }
+    const role = req.params.role;
+    const items = await VideoManage.findAll({ where: { role }, order: [['created_at', 'DESC']] });
+    return res.json({ success: true, data: items });
+  } catch (error) {
+    console.error('❌ Error listing videos:', error);
+    return res.status(500).json({ success: false, message: 'Error listing videos' });
+  }
+});
+
+// ACTIVATE a video by id (admin/owner only)
+router.patch('/video-manage/:id/activate', authenticateToken, async (req, res) => {
+  try {
+    if (!['admin', 'owner'].includes(req.user?.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
+    }
+    const id = req.params.id;
+    const item = await VideoManage.findByPk(id);
+    if (!item) return res.status(404).json({ success: false, message: 'Video not found' });
+    await VideoManage.update({ active: false }, { where: { role: item.role } });
+    item.active = true;
+    await item.save();
+    return res.json({ success: true, message: 'Video activated', data: item });
+  } catch (error) {
+    console.error('❌ Error activating video:', error);
+    return res.status(500).json({ success: false, message: 'Error activating video' });
+  }
+});
+
+// DELETE a video by id (admin/owner only)
+router.delete('/video-manage/:id', authenticateToken, async (req, res) => {
+  try {
+    if (!['admin', 'owner'].includes(req.user?.role)) {
+      return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
+    }
+    const id = req.params.id;
+    const item = await VideoManage.findByPk(id);
+    if (!item) return res.status(404).json({ success: false, message: 'Video not found' });
+    // Hapus file fisik jika ada
+    const uploadsDir = path.join(__dirname, "../uploads");
+    const absolutePath = path.join(uploadsDir, item.path);
+    try {
+      if (fs.existsSync(absolutePath)) fs.unlinkSync(absolutePath);
+    } catch (e) {
+      console.warn('⚠️ Failed to remove file:', absolutePath, e?.message);
+    }
+    await item.destroy();
+    return res.json({ success: true, message: 'Video deleted' });
+  } catch (error) {
+    console.error('❌ Error deleting video:', error);
+    return res.status(500).json({ success: false, message: 'Error deleting video' });
+  }
 });
 
 // Configure storage for TARGET images
@@ -738,6 +951,13 @@ router.use((err, req, res, next) => {
     return res.status(400).json({
       success: false,
       message: "Only image files are allowed for KPI uploads.",
+    });
+  }
+
+  if (err.message === 'Only video files are allowed for VIDEO MANAGE') {
+    return res.status(400).json({
+      success: false,
+      message: 'Only video files are allowed for VIDEO MANAGE uploads.',
     });
   }
 

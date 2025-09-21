@@ -30,6 +30,7 @@ const SopStep = require('./SopStep');
 const StrukturOrganisasi = require('./StrukturOrganisasi');
 const Pengajuan = require('./Pengajuan');
 const TugasSaya = require('./TugasSaya');
+const VideoManage = require('./VideoManage');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -194,6 +195,10 @@ TugasSaya.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints
 SdmDivisi.hasMany(TugasSaya, { foreignKey: 'id_divisi', as: 'tugasDivisi', constraints: false });
 TugasSaya.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi', constraints: false });
 
+// VideoManage associations
+User.hasMany(VideoManage, { foreignKey: 'uploaded_by', as: 'uploadedVideos', constraints: false });
+VideoManage.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader', constraints: false });
+
 module.exports = {
   User,
   UserDevice,
@@ -226,5 +231,6 @@ module.exports = {
   SopStep,
   StrukturOrganisasi,
   Pengajuan,
-  TugasSaya
+  TugasSaya,
+  VideoManage
 };

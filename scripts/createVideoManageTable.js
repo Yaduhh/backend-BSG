@@ -1,7 +1,7 @@
 /*
   Script: createVideoManageTable.js
   Tujuan: Membuat tabel `video_manage` secara terpisah (tanpa Sequelize CLI)
-  Cara jalan: npm run db:create-video-manage
+  Cara jalan: node scripts/createVideoManageTable.js
 */
 
 const { sequelize } = require('../config/database')

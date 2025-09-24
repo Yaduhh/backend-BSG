@@ -31,7 +31,6 @@ const Pengajuan = require('./Pengajuan');
 const TugasSaya = require('./TugasSaya');
 const SlipGaji = require('./SlipGaji');
 const VideoManage = require('./VideoManage');
-const SopDivisi = require('./SopDivisi');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });

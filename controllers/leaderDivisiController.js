@@ -10,7 +10,12 @@ exports.list = async (req, res) => {
     const rows = await LeaderDivisi.findAll({
       where: { id_user: userId },
       include: [
-        { model: SdmDivisi, as: 'divisi', attributes: ['id','nama_divisi'] }
+        { 
+          model: SdmDivisi, 
+          as: 'divisi', 
+          attributes: ['id','nama_divisi'],
+          where: { status_deleted: 0 }
+        }
       ],
       order: [['id','ASC']]
     })

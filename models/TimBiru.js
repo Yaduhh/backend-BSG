@@ -7,11 +7,6 @@ const TimBiru = sequelize.define('TimBiru', {
     primaryKey: true,
     autoIncrement: true,
   },
-  nama: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    comment: 'Nama karyawan'
-  },
   prestasi: {
     type: DataTypes.STRING(500),
     allowNull: false,
@@ -49,10 +44,6 @@ const TimBiru = sequelize.define('TimBiru', {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
   indexes: [
-    {
-      fields: ['nama']
-    },
-
     {
       fields: ['created_by']
     },

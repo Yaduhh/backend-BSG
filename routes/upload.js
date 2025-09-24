@@ -128,9 +128,9 @@ router.post('/video-manage/:role', authenticateToken, (req, res) => {
   if (!['admin', 'leader'].includes(role)) {
     return res.status(400).json({ success: false, message: 'Invalid role' });
   }
-  // hanya user dengan role admin atau owner yang boleh upload
+  // hanya user dengan role admin, owner, atau leader yang boleh upload
   const userRole = req.user?.role;
-  if (!['admin', 'owner'].includes(userRole)) {
+  if (!['admin', 'owner', 'leader'].includes(userRole)) {
     return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
   }
 
@@ -183,7 +183,7 @@ router.post('/video-manage/:role', authenticateToken, (req, res) => {
 // LIST videos per role (admin/owner only)
 router.get('/video-manage/:role/list', authenticateToken, async (req, res) => {
   try {
-    if (!['admin', 'owner'].includes(req.user?.role)) {
+    if (!['admin', 'owner', 'leader'].includes(req.user?.role)) {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
     }
     const role = req.params.role;
@@ -198,7 +198,7 @@ router.get('/video-manage/:role/list', authenticateToken, async (req, res) => {
 // ACTIVATE a video by id (admin/owner only)
 router.patch('/video-manage/:id/activate', authenticateToken, async (req, res) => {
   try {
-    if (!['admin', 'owner'].includes(req.user?.role)) {
+    if (!['admin', 'owner', 'leader'].includes(req.user?.role)) {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
     }
     const id = req.params.id;
@@ -217,7 +217,7 @@ router.patch('/video-manage/:id/activate', authenticateToken, async (req, res) =
 // DELETE a video by id (admin/owner only)
 router.delete('/video-manage/:id', authenticateToken, async (req, res) => {
   try {
-    if (!['admin', 'owner'].includes(req.user?.role)) {
+    if (!['admin', 'owner', 'leader'].includes(req.user?.role)) {
       return res.status(403).json({ success: false, message: 'Forbidden: insufficient permission' });
     }
     const id = req.params.id;

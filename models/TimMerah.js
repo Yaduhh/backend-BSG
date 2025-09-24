@@ -7,11 +7,6 @@ const TimMerah = sequelize.define('TimMerah', {
     primaryKey: true,
     autoIncrement: true,
   },
-  nama: {
-    type: DataTypes.STRING(255),
-    allowNull: false,
-    comment: 'Nama karyawan'
-  },
   status: {
     type: DataTypes.ENUM('SP1', 'SP2', 'SP3'),
     allowNull: false,
@@ -50,12 +45,8 @@ const TimMerah = sequelize.define('TimMerah', {
   updatedAt: 'updated_at',
   indexes: [
     {
-      fields: ['nama']
-    },
-    {
       fields: ['status']
     },
-
     {
       fields: ['created_by']
     },

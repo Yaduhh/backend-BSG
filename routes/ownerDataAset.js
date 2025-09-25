@@ -4,8 +4,19 @@ const { DataAset, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
-// GET /api/owner/data-aset - Ambil semua data aset dengan pagination (read-only)
-router.get('/', authenticateToken, async (req, res) => {
+// Middleware untuk memastikan hanya owner yang bisa akses
+const ownerOnly = (req, res, next) => {
+  if (req.user.role !== 'owner') {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied. Owner only.'
+    });
+  }
+  next();
+};
+
+// GET /api/owner/data-aset - Ambil semua data aset (read-only preview)
+router.get('/', authenticateToken, ownerOnly, async (req, res) => {
   try {
     const { 
       page = 1, 
@@ -37,8 +48,8 @@ router.get('/', authenticateToken, async (req, res) => {
     }
 
     // Add kategori filter if provided
-    if (kategori && kategori !== 'all') {
-      whereClause.kategori = kategori;
+    if (kategori && kategori.trim()) {
+      whereClause.kategori = kategori.trim();
     }
 
     const dataAset = await DataAset.findAndCountAll({
@@ -48,52 +59,26 @@ router.get('/', authenticateToken, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'username']
+        },
+        {
+          model: User,
+          as: 'updater',
+          attributes: ['id', 'nama', 'username']
         }
       ],
-      order: [[sortBy, sortOrder.toUpperCase()]],
+      order: [[sortBy, sortOrder]],
       limit: parseInt(limit),
       offset: parseInt(offset)
-    });
-
-    // Get statistics
-    const totalAset = await DataAset.count({ where: { status_deleted: false } });
-    const totalProperti = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: 'PROPERTI'
-      } 
-    });
-    const totalKendaraan = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: {
-          [Op.in]: ['KENDARAAN_PRIBADI', 'KENDARAAN_OPERASIONAL', 'KENDARAAN_DISTRIBUSI']
-        }
-      } 
-    });
-    const totalElektronik = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: 'ELEKTRONIK'
-      } 
     });
 
     res.json({
       success: true,
       data: {
         items: dataAset.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(dataAset.count / limit),
-          totalItems: dataAset.count,
-          itemsPerPage: parseInt(limit)
-        },
-        statistics: {
-          totalAset,
-          totalProperti,
-          totalKendaraan,
-          totalElektronik
-        }
+        totalItems: dataAset.count,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(dataAset.count / limit),
+        itemsPerPage: parseInt(limit)
       }
     });
   } catch (error) {
@@ -105,20 +90,25 @@ router.get('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/owner/data-aset/:id - Ambil detail data aset berdasarkan ID
-router.get('/:id', authenticateToken, async (req, res) => {
+// GET /api/owner/data-aset/:id - Ambil data aset berdasarkan ID (read-only preview)
+router.get('/:id', authenticateToken, ownerOnly, async (req, res) => {
   try {
     const { id } = req.params;
 
     const dataAset = await DataAset.findOne({
-      where: { 
-        id: parseInt(id),
+      where: {
+        id: id,
         status_deleted: false
       },
       include: [
         {
           model: User,
           as: 'creator',
+          attributes: ['id', 'nama', 'username']
+        },
+        {
+          model: User,
+          as: 'updater',
           attributes: ['id', 'nama', 'username']
         }
       ]
@@ -144,32 +134,27 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/owner/data-aset/category/:category - Filter berdasarkan kategori
-router.get('/category/:category', authenticateToken, async (req, res) => {
+// GET /api/owner/data-aset/category/:category - Ambil data aset berdasarkan kategori (read-only preview)
+router.get('/category/:category', authenticateToken, ownerOnly, async (req, res) => {
   try {
     const { category } = req.params;
     const { page = 1, limit = 50 } = req.query;
-    
     const offset = (page - 1) * limit;
 
-    const whereClause = {
-      status_deleted: false
-    };
-
-    if (category === 'kendaraan') {
-      whereClause.kategori = {
-        [Op.in]: ['KENDARAAN_PRIBADI', 'KENDARAAN_OPERASIONAL', 'KENDARAAN_DISTRIBUSI']
-      };
-    } else {
-      whereClause.kategori = category.toUpperCase();
-    }
-
     const dataAset = await DataAset.findAndCountAll({
-      where: whereClause,
+      where: {
+        kategori: category,
+        status_deleted: false
+      },
       include: [
         {
           model: User,
           as: 'creator',
+          attributes: ['id', 'nama', 'username']
+        },
+        {
+          model: User,
+          as: 'updater',
           attributes: ['id', 'nama', 'username']
         }
       ],
@@ -182,12 +167,10 @@ router.get('/category/:category', authenticateToken, async (req, res) => {
       success: true,
       data: {
         items: dataAset.rows,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(dataAset.count / limit),
-          totalItems: dataAset.count,
-          itemsPerPage: parseInt(limit)
-        }
+        totalItems: dataAset.count,
+        currentPage: parseInt(page),
+        totalPages: Math.ceil(dataAset.count / limit),
+        itemsPerPage: parseInt(limit)
       }
     });
   } catch (error) {
@@ -199,59 +182,114 @@ router.get('/category/:category', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/owner/data-aset/statistics/overview - Get statistics
-router.get('/statistics/overview', authenticateToken, async (req, res) => {
+// GET /api/owner/data-aset/statistics/overview - Ambil statistik data aset (read-only preview)
+router.get('/statistics/overview', authenticateToken, ownerOnly, async (req, res) => {
   try {
-    const totalAset = await DataAset.count({ where: { status_deleted: false } });
-    const totalProperti = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: 'PROPERTI'
-      } 
-    });
-    const totalKendaraan = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: {
-          [Op.in]: ['KENDARAAN_PRIBADI', 'KENDARAAN_OPERASIONAL', 'KENDARAAN_DISTRIBUSI']
-        }
-      } 
-    });
-    const totalElektronik = await DataAset.count({ 
-      where: { 
-        status_deleted: false,
-        kategori: 'ELEKTRONIK'
-      } 
+    const totalAset = await DataAset.count({
+      where: { status_deleted: false }
     });
 
-    // Get recent additions
+    const kategoriStats = await DataAset.findAll({
+      attributes: [
+        'kategori',
+        [DataAset.sequelize.fn('COUNT', DataAset.sequelize.col('id')), 'count']
+      ],
+      where: { status_deleted: false },
+      group: ['kategori'],
+      raw: true
+    });
+
     const recentAset = await DataAset.findAll({
       where: { status_deleted: false },
       order: [['created_at', 'DESC']],
       limit: 5,
-      include: [
-        {
-          model: User,
-          as: 'creator',
-          attributes: ['id', 'nama', 'username']
-        }
-      ]
+      attributes: ['id', 'nama_aset', 'merk_kendaraan', 'nama_barang', 'kategori', 'created_at']
     });
 
     res.json({
       success: true,
       data: {
-        overview: {
-          totalAset,
-          totalProperti,
-          totalKendaraan,
-          totalElektronik
-        },
+        totalAset,
+        kategoriStats,
         recentAset
       }
     });
   } catch (error) {
     console.error('Error fetching data aset statistics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// GET /api/owner/data-aset/category-summary - Ambil ringkasan per kategori (read-only preview)
+router.get('/category-summary', authenticateToken, ownerOnly, async (req, res) => {
+  try {
+    const kategoriSummary = await DataAset.findAll({
+      attributes: [
+        'kategori',
+        [DataAset.sequelize.fn('COUNT', DataAset.sequelize.col('id')), 'count'],
+        [DataAset.sequelize.fn('MAX', DataAset.sequelize.col('created_at')), 'lastCreated'],
+        [DataAset.sequelize.fn('MAX', DataAset.sequelize.col('updated_at')), 'lastUpdated']
+      ],
+      where: { status_deleted: false },
+      group: ['kategori'],
+      order: [[DataAset.sequelize.fn('COUNT', DataAset.sequelize.col('id')), 'DESC']],
+      raw: true
+    });
+
+    res.json({
+      success: true,
+      data: kategoriSummary
+    });
+  } catch (error) {
+    console.error('Error fetching category summary:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
+// GET /api/owner/data-aset/export/:format - Export data aset (read-only preview)
+router.get('/export/:format', authenticateToken, ownerOnly, async (req, res) => {
+  try {
+    const { format } = req.params;
+    const { kategori } = req.query;
+
+    let whereClause = { status_deleted: false };
+    if (kategori && kategori.trim()) {
+      whereClause.kategori = kategori.trim();
+    }
+
+    const dataAset = await DataAset.findAll({
+      where: whereClause,
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['nama', 'username']
+        }
+      ],
+      order: [['kategori', 'ASC'], ['created_at', 'DESC']]
+    });
+
+    if (format === 'pdf') {
+      // For now, return JSON data. PDF generation can be implemented later
+      res.json({
+        success: true,
+        message: 'PDF export feature will be implemented soon',
+        data: dataAset
+      });
+    } else {
+      res.json({
+        success: true,
+        data: dataAset
+      });
+    }
+  } catch (error) {
+    console.error('Error exporting data aset:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'

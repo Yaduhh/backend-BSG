@@ -2,6 +2,34 @@ const express = require('express');
 const router = express.Router();
 const { TimMerah, TimBiru, User, SdmData, SdmJabatan, SdmDivisi } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+const { Op } = require('sequelize');
+
+// Helper: ambil SDM map untuk banyak user_id sekaligus
+async function getSdmMapByUserIds(userIds) {
+  if (!Array.isArray(userIds) || userIds.length === 0) return new Map();
+  const unique = [...new Set(userIds.filter(Boolean))];
+  if (unique.length === 0) return new Map();
+  const sdms = await SdmData.findAll({
+    where: { user_id: { [Op.in]: unique } },
+    include: [
+      {
+        model: SdmJabatan,
+        as: 'jabatan',
+        include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
+        attributes: ['id', 'nama_jabatan', 'divisi_id']
+      }
+    ]
+  });
+  const map = new Map();
+  for (const s of sdms) {
+    map.set(s.user_id, {
+      nama: s.nama || '-',
+      posisi: s.jabatan?.nama_jabatan || '-',
+      divisi: s.jabatan?.divisi?.nama_divisi || '-',
+    });
+  }
+  return map;
+}
 
 // ===== OWNER TIM MERAH ROUTES (READ ONLY) =====
 
@@ -38,24 +66,14 @@ router.get('/merah', authenticateToken, async (req, res) => {
 
     // Override nama/divisi/posisi dari SDM
     const userIds = timMerah.rows.map(r => r.user_id).filter(Boolean);
-    const sdms = await SdmData.findAll({
-      where: { user_id: userIds },
-      include: [{
-        model: SdmJabatan,
-        as: 'jabatan',
-        include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
-        attributes: ['id', 'nama_jabatan', 'divisi_id']
-      }]
-    });
-    const sdmMap = new Map(sdms.map(s => [s.user_id, s]));
+    const sdmMap = await getSdmMapByUserIds(userIds);
     const data = timMerah.rows.map(r => {
       const plain = r.toJSON ? r.toJSON() : r;
       const sdm = sdmMap.get(r.user_id);
-      if (sdm) {
-        plain.nama = sdm.nama || plain.nama;
-        plain.posisi = sdm.jabatan?.nama_jabatan || '-';
-        plain.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
-      }
+      // Menggunakan employee.nama sebagai fallback pertama seperti admin
+      plain.nama = (plain.employee && plain.employee.nama) || (sdm && sdm.nama) || '-';
+      plain.posisi = (sdm && sdm.posisi) || '-';
+      plain.divisi = (sdm && sdm.divisi) || '-';
       return plain;
     });
 
@@ -113,20 +131,21 @@ router.get('/merah/:id', authenticateToken, async (req, res) => {
 
     let data = timMerah.toJSON ? timMerah.toJSON() : timMerah;
     if (timMerah.user_id) {
-      const sdm = await SdmData.findOne({
-        where: { user_id: timMerah.user_id },
-        include: [{
-          model: SdmJabatan,
-          as: 'jabatan',
-          include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
-          attributes: ['id', 'nama_jabatan', 'divisi_id']
-        }]
-      });
+      const sdmMap = await getSdmMapByUserIds([timMerah.user_id]);
+      const sdm = sdmMap.get(timMerah.user_id);
       if (sdm) {
-        data.nama = sdm.nama || data.nama;
-        data.posisi = sdm.jabatan?.nama_jabatan || '-';
-        data.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+        data.nama = (data.employee && data.employee.nama) || sdm.nama || '-';
+        data.posisi = sdm.posisi || '-';
+        data.divisi = sdm.divisi || '-';
+      } else {
+        data.nama = (data.employee && data.employee.nama) || data.nama || '-';
+        data.posisi = data.posisi || '-';
+        data.divisi = data.divisi || '-';
       }
+    } else {
+      data.nama = (data.employee && data.employee.nama) || data.nama || '-';
+      data.posisi = data.posisi || '-';
+      data.divisi = data.divisi || '-';
     }
     res.json({ success: true, data });
   } catch (error) {
@@ -172,24 +191,14 @@ router.get('/biru', authenticateToken, async (req, res) => {
     });
 
     const userIdsB = timBiru.rows.map(r => r.user_id).filter(Boolean);
-    const sdmsB = await SdmData.findAll({
-      where: { user_id: userIdsB },
-      include: [{
-        model: SdmJabatan,
-        as: 'jabatan',
-        include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
-        attributes: ['id', 'nama_jabatan', 'divisi_id']
-      }]
-    });
-    const sdmMapB = new Map(sdmsB.map(s => [s.user_id, s]));
+    const sdmMapB = await getSdmMapByUserIds(userIdsB);
     const dataB = timBiru.rows.map(r => {
       const plain = r.toJSON ? r.toJSON() : r;
       const sdm = sdmMapB.get(r.user_id);
-      if (sdm) {
-        plain.nama = sdm.nama || plain.nama;
-        plain.posisi = sdm.jabatan?.nama_jabatan || '-';
-        plain.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
-      }
+      // Menggunakan employee.nama sebagai fallback pertama seperti admin
+      plain.nama = (plain.employee && plain.employee.nama) || (sdm && sdm.nama) || '-';
+      plain.posisi = (sdm && sdm.posisi) || '-';
+      plain.divisi = (sdm && sdm.divisi) || '-';
       return plain;
     });
 
@@ -247,20 +256,21 @@ router.get('/biru/:id', authenticateToken, async (req, res) => {
 
     let data = timBiru.toJSON ? timBiru.toJSON() : timBiru;
     if (timBiru.user_id) {
-      const sdm = await SdmData.findOne({
-        where: { user_id: timBiru.user_id },
-        include: [{
-          model: SdmJabatan,
-          as: 'jabatan',
-          include: [{ model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }],
-          attributes: ['id', 'nama_jabatan', 'divisi_id']
-        }]
-      });
+      const sdmMap = await getSdmMapByUserIds([timBiru.user_id]);
+      const sdm = sdmMap.get(timBiru.user_id);
       if (sdm) {
-        data.nama = sdm.nama || data.nama;
-        data.posisi = sdm.jabatan?.nama_jabatan || '-';
-        data.divisi = sdm.jabatan?.divisi?.nama_divisi || '-';
+        data.nama = (data.employee && data.employee.nama) || sdm.nama || '-';
+        data.posisi = sdm.posisi || '-';
+        data.divisi = sdm.divisi || '-';
+      } else {
+        data.nama = (data.employee && data.employee.nama) || data.nama || '-';
+        data.posisi = data.posisi || '-';
+        data.divisi = data.divisi || '-';
       }
+    } else {
+      data.nama = (data.employee && data.employee.nama) || data.nama || '-';
+      data.posisi = data.posisi || '-';
+      data.divisi = data.divisi || '-';
     }
     res.json({ success: true, data });
   } catch (error) {

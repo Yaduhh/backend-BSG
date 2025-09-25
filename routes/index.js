@@ -23,6 +23,12 @@ const ownerTrainingRoutes = require('./ownerTraining');
 const leaderTrainingRoutes = require('./leaderTraining');
 // KPI modules
 const kpiRoutes = require('./kpiRoutes');
+// Data Investor modules
+const adminDataInvestorRoutes = require('./adminDataInvestor');
+const ownerDataInvestorRoutes = require('./ownerDataInvestor');
+// Data Aset modules
+const adminDataAsetRoutes = require('./adminDataAset');
+const ownerDataAsetRoutes = require('./ownerDataAset');
 
 // Mount routes
 router.use('/health', healthRoutes);
@@ -46,5 +52,11 @@ router.use('/owner/training', ownerTrainingRoutes);
 router.use('/leader/training', leaderTrainingRoutes);
 // KPI mounts
 router.use('/kpis', kpiRoutes);
+// Data Investor mounts
+router.use('/admin/data-investor', adminDataInvestorRoutes);
+router.use('/owner/data-investor', ownerDataInvestorRoutes);
+// Data Aset mounts
+router.use('/admin/data-aset', adminDataAsetRoutes);
+router.use('/owner/data-aset', ownerDataAsetRoutes);
 
 module.exports = router;

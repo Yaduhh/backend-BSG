@@ -7,7 +7,7 @@ async function testChatConnection() {
     try {
         // Create connection
         connection = await mysql.createConnection({
-            host: process.env.DB_HOST || '192.168.0.156',
+            host: process.env.DB_HOST || '192.168.1.6',
             host: process.env.DB_HOST || '172.20.10.10',
             port: process.env.DB_PORT || 3306,
             user: process.env.DB_USER || 'root',

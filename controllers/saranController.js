@@ -139,6 +139,30 @@ const getSaranById = async (req, res) => {
   }
 };
 
+const getSaranBySender = async (req, res) => {
+  try {
+    const { senderId } = req.params;
+    const { status_deleted } = req.query;
+    const where = { created_by: senderId };
+    if (status_deleted !== undefined) {
+      where.status_deleted = String(status_deleted) === '0' ? false : Boolean(Number(status_deleted));
+    } else {
+      where.status_deleted = false;
+    }
+    const saran = await Saran.findAll({
+      where,
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'nama', 'email'] }
+      ],
+      order: [['created_at', 'DESC']]
+    });
+    res.json({ success: true, data: saran, message: 'Data saran by sender berhasil diambil' });
+  } catch (error) {
+    console.error('Error getting saran by sender:', error);
+    res.status(500).json({ success: false, message: 'Gagal mengambil data saran by sender', error: error.message });
+  }
+};
+
 // Create new saran
 const createSaran = async (req, res) => {
   try {
@@ -306,6 +330,7 @@ module.exports = {
   getAllSaranForOwner,
   getSaranById,
   getSaranByReceiver,
+  getSaranBySender,
   createSaran,
   updateSaran,
   deleteSaran

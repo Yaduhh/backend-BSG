@@ -1,8 +1,8 @@
 const { Op } = require('sequelize')
-const { TugasSaya, User, SdmDivisi } = require('../models')
+const { TugasSaya, User } = require('../models')
 
 // GET /api/leader/tugas-saya
-// Query: page, limit, q, id_divisi
+// Query: page, limit, q, id_user
 exports.list = async (req, res) => {
   try {
     const userId = req.user?.id
@@ -10,41 +10,61 @@ exports.list = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' })
     }
 
-    const { page = 1, limit = 10, q, id_divisi } = req.query
+    const { page = 1, limit = 10, q, id_user } = req.query
     const where = { status_deleted: false, created_by: userId }
 
     if (q && String(q).trim()) {
       where.tugas_saya = { [Op.like]: `%${String(q).trim()}%` }
     }
-    if (id_divisi) {
-      where.id_divisi = id_divisi
+    if (id_user) {
+      where.id_user = id_user
     }
 
     const offset = (parseInt(page) - 1) * parseInt(limit)
 
-    const result = await TugasSaya.findAndCountAll({
+    // First get the count without includes to avoid alias conflicts
+    const count = await TugasSaya.count({ where })
+    
+    // Then get the data with only creator include
+    const rows = await TugasSaya.findAll({
       where,
       include: [
-        // Hanya ambil kolom yang benar-benar ada di tabel users
-        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] },
-        { model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }
+        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] }
       ],
       order: [['created_at', 'DESC']],
       limit: parseInt(limit),
       offset,
     })
+    
+    const result = { rows, count }
 
-    const rows = result.rows.map(r => {
+    // Get assigned user data separately
+    const assignedUserIds = result.rows.filter(r => r.id_user).map(r => r.id_user)
+    const assignedUsers = assignedUserIds.length > 0 
+      ? await User.findAll({ 
+          where: { id: assignedUserIds }, 
+          attributes: ['id', 'username', 'nama'] 
+        })
+      : []
+    
+    const assignedUsersMap = {}
+    assignedUsers.forEach(user => {
+      assignedUsersMap[user.id] = user
+    })
+
+    const mappedRows = result.rows.map(r => {
       const o = r.toJSON()
       const creator = o.creator || {}
+      const assignedUser = assignedUsersMap[o.id_user] || {}
       const creatorName = creator.name || creator.nama || creator.full_name || creator.username || '-'
+      const assignedUserName = assignedUser.name || assignedUser.nama || assignedUser.full_name || assignedUser.username || '-'
       return {
         id: o.id,
         tugas_saya: o.tugas_saya,
         created_by: o.created_by,
         created_by_name: creatorName,
-        id_divisi: o.id_divisi,
-        divisi_nama: o.divisi?.nama_divisi || '-',
+        id_user: o.id_user,
+        assigned_user_name: assignedUserName,
         created_at: o.created_at,
         updated_at: o.updated_at,
       }
@@ -52,7 +72,7 @@ exports.list = async (req, res) => {
 
     return res.json({
       success: true,
-      data: rows,
+      data: mappedRows,
       pagination: {
         currentPage: parseInt(page),
         totalPages: Math.ceil(result.count / parseInt(limit)),
@@ -67,13 +87,13 @@ exports.list = async (req, res) => {
 }
 
 // POST /api/leader/tugas-saya
-// Body: { tugas_saya: string, id_divisi?: number }
+// Body: { tugas_saya: string, id_user?: number }
 exports.create = async (req, res) => {
   try {
     const userId = req.user?.id
     if (!userId) return res.status(401).json({ success: false, message: 'Unauthorized' })
 
-    const { tugas_saya, id_divisi } = req.body || {}
+    const { tugas_saya, id_user } = req.body || {}
     if (!tugas_saya || String(tugas_saya).trim().length === 0) {
       return res.status(400).json({ success: false, message: 'Field tugas_saya wajib diisi' })
     }
@@ -83,8 +103,8 @@ exports.create = async (req, res) => {
       created_by: userId,
       status_deleted: false,
     }
-    if (id_divisi !== undefined && id_divisi !== null && String(id_divisi).trim() !== '') {
-      payload.id_divisi = Number(id_divisi)
+    if (id_user !== undefined && id_user !== null && String(id_user).trim() !== '') {
+      payload.id_user = Number(id_user)
     }
 
     const created = await TugasSaya.create(payload)
@@ -113,8 +133,7 @@ exports.getById = async (req, res) => {
         status_deleted: false
       },
       include: [
-        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] },
-        { model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }
+        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] }
       ]
     })
 
@@ -125,6 +144,17 @@ exports.getById = async (req, res) => {
     const obj = tugas.toJSON()
     const creator = obj.creator || {}
     const creatorName = creator.name || creator.nama || creator.full_name || creator.username || '-'
+    
+    // Get assigned user data separately if exists
+    let assignedUserName = '-'
+    if (obj.id_user) {
+      const assignedUser = await User.findByPk(obj.id_user, { 
+        attributes: ['id', 'username', 'nama'] 
+      })
+      if (assignedUser) {
+        assignedUserName = assignedUser.name || assignedUser.nama || assignedUser.full_name || assignedUser.username || '-'
+      }
+    }
 
     return res.json({
       success: true,
@@ -133,8 +163,8 @@ exports.getById = async (req, res) => {
         tugas_saya: obj.tugas_saya,
         created_by: obj.created_by,
         created_by_name: creatorName,
-        id_divisi: obj.id_divisi,
-        divisi_nama: obj.divisi?.nama_divisi || '-',
+        id_user: obj.id_user,
+        assigned_user_name: assignedUserName,
         created_at: obj.created_at,
         updated_at: obj.updated_at,
       }
@@ -154,7 +184,7 @@ exports.update = async (req, res) => {
     }
 
     const { id } = req.params
-    const { tugas_saya, id_divisi } = req.body || {}
+    const { tugas_saya, id_user } = req.body || {}
 
     // Validasi input
     if (tugas_saya !== undefined && (!tugas_saya || String(tugas_saya).trim().length === 0)) {
@@ -179,8 +209,8 @@ exports.update = async (req, res) => {
     if (tugas_saya !== undefined) {
       updateData.tugas_saya = String(tugas_saya).trim()
     }
-    if (id_divisi !== undefined) {
-      updateData.id_divisi = id_divisi !== null && String(id_divisi).trim() !== '' ? Number(id_divisi) : null
+    if (id_user !== undefined) {
+      updateData.id_user = id_user !== null && String(id_user).trim() !== '' ? Number(id_user) : null
     }
 
     await tugas.update(updateData)
@@ -188,14 +218,24 @@ exports.update = async (req, res) => {
     // Fetch updated data with relations
     const updatedTugas = await TugasSaya.findByPk(tugas.id, {
       include: [
-        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] },
-        { model: SdmDivisi, as: 'divisi', attributes: ['id', 'nama_divisi'] }
+        { model: User, as: 'creator', attributes: ['id', 'username', 'nama'] }
       ]
     })
 
     const obj = updatedTugas.toJSON()
     const creator = obj.creator || {}
     const creatorName = creator.name || creator.nama || creator.full_name || creator.username || '-'
+    
+    // Get assigned user data separately if exists
+    let assignedUserName = '-'
+    if (obj.id_user) {
+      const assignedUser = await User.findByPk(obj.id_user, { 
+        attributes: ['id', 'username', 'nama'] 
+      })
+      if (assignedUser) {
+        assignedUserName = assignedUser.name || assignedUser.nama || assignedUser.full_name || assignedUser.username || '-'
+      }
+    }
 
     return res.json({
       success: true,
@@ -205,8 +245,8 @@ exports.update = async (req, res) => {
         tugas_saya: obj.tugas_saya,
         created_by: obj.created_by,
         created_by_name: creatorName,
-        id_divisi: obj.id_divisi,
-        divisi_nama: obj.divisi?.nama_divisi || '-',
+        id_user: obj.id_user,
+        assigned_user_name: assignedUserName,
         created_at: obj.created_at,
         updated_at: obj.updated_at,
       }

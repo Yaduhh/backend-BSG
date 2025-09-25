@@ -6,6 +6,7 @@ const {
   getAllSaranForOwner,
   getSaranById,
   getSaranByReceiver,
+  getSaranBySender,
   createSaran,
   updateSaran,
   deleteSaran
@@ -22,6 +23,9 @@ router.get('/owner', getAllSaranForOwner);
 
 // GET /api/saran/receiver/:receiverId - Get saran by receiver ID
 router.get('/receiver/:receiverId', getSaranByReceiver);
+
+// GET /api/saran/sender/:senderId - Get saran by creator ID
+router.get('/sender/:senderId', getSaranBySender);
 
 // GET /api/saran/:id - Get saran by ID
 router.get('/:id', getSaranById);

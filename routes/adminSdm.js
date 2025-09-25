@@ -1551,8 +1551,7 @@ router.get('/team-data/:userId', authenticateToken, async (req, res) => {
     // Import models
     const { User, LeaderDivisi, SdmDivisi } = require('../models');
 
-    console.log('=== DEBUG LEADER DIVISI ===');
-    console.log('Leader ID:', userId);
+    
 
     // Cari divisi leader menggunakan tabel leader_divisi
     const leaderDivisiData = await LeaderDivisi.findAll({
@@ -1568,10 +1567,10 @@ router.get('/team-data/:userId', authenticateToken, async (req, res) => {
       ]
     });
 
-    console.log('Leader Divisi Data:', JSON.stringify(leaderDivisiData, null, 2));
+    
 
     if (!leaderDivisiData || leaderDivisiData.length === 0) {
-      console.log('ERROR: Data divisi leader tidak ditemukan');
+      
       return res.status(404).json({
         success: false,
         message: 'Data divisi leader tidak ditemukan'
@@ -1582,14 +1581,12 @@ router.get('/team-data/:userId', authenticateToken, async (req, res) => {
     const leaderDivisiIds = leaderDivisiData.map(item => item.id_divisi);
     const leaderDivisi = leaderDivisiData[0].divisi; // Ambil divisi pertama untuk response
     
-    console.log('Leader Divisi IDs:', leaderDivisiIds);
-    console.log('Leader Divisi Info:', JSON.stringify(leaderDivisi, null, 2));
+    
 
     // Ambil semua user yang berada di divisi yang sama dengan leader
     // Melalui relasi: User -> SdmData -> SdmJabatan -> SdmDivisi
     // Filter berdasarkan divisi yang sama dengan leader_divisi
-    console.log('=== DEBUG TEAM MEMBERS QUERY ===');
-    console.log('Filtering by divisi IDs:', leaderDivisiIds);
+    
     
     const teamMembers = await User.findAll({
       attributes: ['id', 'nama', 'username', 'email', 'role', 'jenis_kelamin', 'nib', 'created_at', 'training_dasar', 'training_skill', 'training_leadership', 'training_lanjutan'],
@@ -1641,16 +1638,7 @@ router.get('/team-data/:userId', authenticateToken, async (req, res) => {
       ]
     });
 
-    console.log('=== DEBUG TEAM MEMBERS RESULT ===');
-    console.log('Total team members found:', teamMembers.length);
-    teamMembers.forEach((member, index) => {
-      console.log(`Member ${index + 1}:`, {
-        id: member.id,
-        nama: member.nama,
-        role: member.role,
-        divisi: member.sdmDataUser?.[0]?.jabatan?.divisi?.nama_divisi || 'No divisi'
-      });
-    });
+    
 
     res.json({
       success: true,

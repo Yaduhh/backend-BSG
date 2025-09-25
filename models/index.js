@@ -194,8 +194,8 @@ Pengajuan.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints
 // TugasSaya associations (tanpa FK DB-level)
 User.hasMany(TugasSaya, { foreignKey: 'created_by', as: 'tugasSayaCreated', constraints: false });
 TugasSaya.belongsTo(User, { foreignKey: 'created_by', as: 'creator', constraints: false });
-SdmDivisi.hasMany(TugasSaya, { foreignKey: 'id_divisi', as: 'tugasDivisi', constraints: false });
-TugasSaya.belongsTo(SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi', constraints: false });
+User.hasMany(TugasSaya, { foreignKey: 'id_user', as: 'assignedTugas', constraints: false });
+TugasSaya.belongsTo(User, { foreignKey: 'id_user', as: 'assignedUser', constraints: false });
 
 // SlipGaji associations
 User.hasMany(SlipGaji, { foreignKey: 'id_user', as: 'slipGajiUser' });

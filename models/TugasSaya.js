@@ -17,10 +17,10 @@ const TugasSaya = sequelize.define('TugasSaya', {
     allowNull: false,
     comment: 'ID user pembuat entri'
   },
-  id_divisi: {
+  id_user: {
     type: DataTypes.INTEGER,
     allowNull: true,
-    comment: 'Relasi ke tabel sdm_divisi'
+    comment: 'Relasi ke tabel users'
   },
   status_deleted: {
     type: DataTypes.BOOLEAN,
@@ -36,7 +36,7 @@ const TugasSaya = sequelize.define('TugasSaya', {
 
 TugasSaya.associate = (models) => {
   TugasSaya.belongsTo(models.User, { foreignKey: 'created_by', as: 'creator' })
-  TugasSaya.belongsTo(models.SdmDivisi, { foreignKey: 'id_divisi', as: 'divisi' })
+  TugasSaya.belongsTo(models.User, { foreignKey: 'id_user', as: 'assignedUser' })
 }
 
 module.exports = TugasSaya

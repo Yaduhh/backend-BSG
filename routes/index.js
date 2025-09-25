@@ -20,6 +20,7 @@ const adminSdmDivisiRoutes = require('./adminSdmDivisi');
 // Training modules
 const adminTrainingRoutes = require('./adminTraining');
 const ownerTrainingRoutes = require('./ownerTraining');
+const leaderTrainingRoutes = require('./leaderTraining');
 // KPI modules
 const kpiRoutes = require('./kpiRoutes');
 
@@ -42,6 +43,7 @@ router.use('/sdm-divisi', adminSdmDivisiRoutes);
 // Training mounts
 router.use('/admin/training', adminTrainingRoutes);
 router.use('/owner/training', ownerTrainingRoutes);
+router.use('/leader/training', leaderTrainingRoutes);
 // KPI mounts
 router.use('/kpis', kpiRoutes);
 

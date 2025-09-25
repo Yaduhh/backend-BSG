@@ -125,13 +125,23 @@ router.get('/merah', authenticateToken, async (req, res) => {
     // Override nama/divisi/posisi dengan SDM
     const userIds = timMerah.rows.map(r => r.user_id).filter(Boolean);
     const sdmMap = await getSdmMapByUserIds(userIds);
+    console.log('[TimMerah] total rows:', timMerah.count, 'with userIds:', userIds.length);
+    if (userIds.length > 0) {
+      const sampleId = userIds[0];
+      const sample = sdmMap.get(sampleId);
+      console.log('[TimMerah] sample user_id:', sampleId, 'sdm:', sample ? { nama: sample.nama, posisi: sample.posisi, divisi: sample.divisi } : null);
+    }
     const data = timMerah.rows.map(r => {
       const sdm = sdmMap.get(r.user_id);
       const plain = r.toJSON ? r.toJSON() : r;
-      if (sdm) {
-        plain.nama = sdm.nama;
-        plain.posisi = sdm.posisi;
-        plain.divisi = sdm.divisi;
+      if (!r.user_id) {
+        console.log('[TimMerah] row tanpa user_id, id:', r.id);
+      }
+      plain.nama = (plain.employee && plain.employee.nama) || (sdm && sdm.nama) || '-';
+      plain.posisi = (sdm && sdm.posisi) || '-';
+      plain.divisi = (sdm && sdm.divisi) || '-';
+      if (!sdm) {
+        console.log('[TimMerah] SDM tidak ditemukan untuk user_id:', r.user_id, 'row id:', r.id);
       }
       return plain;
     });
@@ -429,11 +439,9 @@ router.get('/biru', authenticateToken, async (req, res) => {
     const data = timBiru.rows.map(r => {
       const sdm = sdmMap.get(r.user_id);
       const plain = r.toJSON ? r.toJSON() : r;
-      if (sdm) {
-        plain.nama = sdm.nama;
-        plain.posisi = sdm.posisi;
-        plain.divisi = sdm.divisi;
-      }
+      plain.nama = (plain.employee && plain.employee.nama) || (sdm && sdm.nama) || '-';
+      plain.posisi = (sdm && sdm.posisi) || '-';
+      plain.divisi = (sdm && sdm.divisi) || '-';
       return plain;
     });
 
@@ -609,7 +617,9 @@ router.get('/stats', authenticateToken, async (req, res) => {
       });
     }
 
-    // ... (rest of the code remains the same)
+    const timMerahCount = await TimMerah.count();
+    const timBiruCount = await TimBiru.count();
+
     // Get status breakdown for tim merah
     const statusBreakdown = await TimMerah.findAll({
       attributes: [

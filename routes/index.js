@@ -29,6 +29,13 @@ const ownerDataInvestorRoutes = require('./ownerDataInvestor');
 // Data Aset modules
 const adminDataAsetRoutes = require('./adminDataAset');
 const ownerDataAsetRoutes = require('./ownerDataAset');
+// Data Target modules
+const adminDataTargetRoutes = require('./adminDataTarget');
+const ownerDataTargetRoutes = require('./ownerDataTarget');
+// Data Bina Lingkungan modules
+const adminDataBinaLingkunganRoutes = require('./adminDataBinaLingkungan');
+const ownerDataBinaLingkunganRoutes = require('./ownerDataBinaLingkungan');
+// Data Sewa modules - Not used here, mounted directly in app.js
 
 // Mount routes
 router.use('/health', healthRoutes);
@@ -58,5 +65,12 @@ router.use('/owner/data-investor', ownerDataInvestorRoutes);
 // Data Aset mounts
 router.use('/admin/data-aset', adminDataAsetRoutes);
 router.use('/owner/data-aset', ownerDataAsetRoutes);
+// Data Target mounts
+router.use('/admin/data-target', adminDataTargetRoutes);
+router.use('/owner/data-target', ownerDataTargetRoutes);
+// Data Bina Lingkungan mounts
+router.use('/admin/data-bina-lingkungan', adminDataBinaLingkunganRoutes);
+router.use('/owner/data-bina-lingkungan', ownerDataBinaLingkunganRoutes);
+// Data Sewa mounts - Not used here, mounted directly in app.js
 
 module.exports = router;

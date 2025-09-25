@@ -59,14 +59,9 @@ router.get('/', authenticateToken, ownerOnly, async (req, res) => {
           model: User,
           as: 'creator',
           attributes: ['id', 'nama', 'username']
-        },
-        {
-          model: User,
-          as: 'updater',
-          attributes: ['id', 'nama', 'username']
         }
       ],
-      order: [[sortBy, sortOrder]],
+      order: [[sortBy, sortOrder.toUpperCase()]],
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
@@ -104,11 +99,6 @@ router.get('/:id', authenticateToken, ownerOnly, async (req, res) => {
         {
           model: User,
           as: 'creator',
-          attributes: ['id', 'nama', 'username']
-        },
-        {
-          model: User,
-          as: 'updater',
           attributes: ['id', 'nama', 'username']
         }
       ]
@@ -150,11 +140,6 @@ router.get('/category/:category', authenticateToken, ownerOnly, async (req, res)
         {
           model: User,
           as: 'creator',
-          attributes: ['id', 'nama', 'username']
-        },
-        {
-          model: User,
-          as: 'updater',
           attributes: ['id', 'nama', 'username']
         }
       ],

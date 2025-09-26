@@ -107,3 +107,35 @@ exports.getById = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+// PUT /api/owner/pengajuan/:id/status
+exports.updateStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['disetujui', 'tidak_disetujui', 'pending'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Status tidak valid' });
+    }
+
+    const pengajuan = await Pengajuan.findByPk(id);
+    if (!pengajuan || pengajuan.status_deleted) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Owner can update any pengajuan status
+    await pengajuan.update({ status });
+
+    return res.json({
+      success: true,
+      message: 'Status pengajuan berhasil diperbarui',
+      data: {
+        id: pengajuan.id,
+        status: pengajuan.status
+      }
+    });
+  } catch (error) {
+    console.error('Error updating owner pengajuan status:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};

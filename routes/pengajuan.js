@@ -12,6 +12,12 @@ router.get('/:id', authenticateToken, pengajuanController.getById);
 // POST /api/pengajuan
 router.post('/', authenticateToken, pengajuanController.create);
 
+// PUT /api/pengajuan/:id
+router.put('/:id', authenticateToken, pengajuanController.update);
+
+// DELETE /api/pengajuan/:id
+router.delete('/:id', authenticateToken, pengajuanController.delete);
+
 // PUT /api/pengajuan/:id/status
 router.put('/:id/status', authenticateToken, pengajuanController.updateStatus);
 

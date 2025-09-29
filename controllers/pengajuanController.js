@@ -105,6 +105,7 @@ exports.create = async (req, res) => {
     // Parse JSON strings jika sudah berupa string, atau stringify jika array
     let terkaitJson, lampiranJson;
     try {
+      // Handle terkait - save IDs directly
       terkaitJson = typeof terkait === 'string' ? terkait : JSON.stringify(terkait || []);
     } catch {
       terkaitJson = '[]';
@@ -182,8 +183,89 @@ exports.getById = async (req, res) => {
   }
 };
 
+// PUT /api/pengajuan/:id
+// Body: { tanggal, pengajuan, nilai, status, terkait, lampiran }
+exports.update = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    const { id } = req.params;
+    const { tanggal, pengajuan, nilai, status, terkait, lampiran } = req.body || {};
+
+    const found = await Pengajuan.findByPk(id);
+    if (!found) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Owner boleh update; selain owner: hanya pembuatnya yang boleh
+    if (role !== 'owner' && found.created_by !== userId) {
+      return res.status(403).json({ success: false, message: 'Tidak ada akses untuk mengubah pengajuan ini' });
+    }
+
+    // Prepare update data
+    const updateData = {};
+    
+    if (tanggal !== undefined) updateData.tanggal = tanggal;
+    if (pengajuan !== undefined) updateData.pengajuan = pengajuan;
+    if (nilai !== undefined) updateData.nilai = Number(nilai) || 0;
+    if (status !== undefined) updateData.status = status;
+    
+    // Handle terkait - save IDs directly
+    if (terkait !== undefined) {
+      updateData.terkait = typeof terkait === 'string' ? terkait : JSON.stringify(terkait || []);
+    }
+    
+    // Handle lampiran
+    if (lampiran !== undefined) {
+      updateData.lampiran = typeof lampiran === 'string' ? lampiran : JSON.stringify(lampiran || []);
+    }
+
+    await found.update(updateData);
+
+    const obj = found.toJSON();
+    obj.terkait = JSON.parse(obj.terkait || '[]');
+    obj.lampiran = JSON.parse(obj.lampiran || '[]');
+
+    return res.json({ success: true, message: 'Pengajuan berhasil diperbarui', data: obj });
+  } catch (error) {
+    console.error('Error updating pengajuan:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 // PUT /api/pengajuan/:id/status
 // Body: { status }
+// DELETE /api/pengajuan/:id (soft delete)
+exports.delete = async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    const role = req.user?.role;
+    const { id } = req.params;
+
+    const found = await Pengajuan.findByPk(id);
+    if (!found) {
+      return res.status(404).json({ success: false, message: 'Pengajuan tidak ditemukan' });
+    }
+
+    // Owner boleh delete; selain owner: hanya pembuatnya yang boleh
+    if (role !== 'owner' && found.created_by !== userId) {
+      return res.status(403).json({ success: false, message: 'Tidak ada akses untuk menghapus pengajuan ini' });
+    }
+
+    // Soft delete - update status_deleted ke true
+    await found.update({ 
+      status_deleted: true,
+      deleted_at: new Date(),
+      deleted_by: userId
+    });
+
+    return res.json({ success: true, message: 'Pengajuan berhasil dihapus' });
+  } catch (error) {
+    console.error('Error deleting pengajuan:', error);
+    return res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params

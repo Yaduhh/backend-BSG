@@ -1797,6 +1797,67 @@ const sendPengumumanNotification = async (pengumumanData, ownerUser, action = 'c
   }
 };
 
+// Send komplain leader note notification
+const sendKomplainLeaderNoteNotification = async (pelaporId, komplainId, catatanLeader, wsService = null) => {
+  try {
+    const { User, DaftarKomplain } = require('../models');
+    
+    // Get komplain details
+    const komplain = await DaftarKomplain.findByPk(komplainId);
+    if (!komplain) {
+      console.error('Komplain not found:', komplainId);
+      return false;
+    }
+    
+    const komplainTitle = komplain.judul_komplain;
+    
+    // Get pelapor user
+    const pelapor = await User.findByPk(pelaporId);
+    if (!pelapor) {
+      console.error('Pelapor not found for komplain:', komplainId);
+      return false;
+    }
+
+    // Notification for pelapor (owner) - leader note added
+    const title = `📝 Catatan Leader: ${komplainTitle}`;
+    const body = `Leader telah menambahkan catatan untuk komplain Anda: ${catatanLeader}`;
+    const data = {
+      type: 'komplain_leader_note',
+      komplain_id: komplainId,
+      komplain_title: komplainTitle,
+      catatan_leader: catatanLeader
+    };
+
+    // Send push notification
+    await sendNotificationToUser(pelaporId, title, body, data);
+
+    // Send WebSocket notification if user is online
+    if (wsService) {
+      try {
+        const notificationData = {
+          type: 'komplain_leader_note',
+          komplain_id: komplainId,
+          komplain_title: komplainTitle,
+          catatan_leader: catatanLeader,
+          title: title,
+          body: body,
+          timestamp: new Date()
+        };
+        
+        wsService.sendNotificationToUser(pelaporId, notificationData);
+      } catch (wsError) {
+        console.error('WebSocket notification error for leader note:', wsError);
+      }
+    }
+
+    console.log(`✅ Komplain leader note notification sent to pelapor: ${pelapor.nama}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending komplain leader note notification:', error);
+    return false;
+  }
+};
+
 module.exports = {
   sendNotificationToDevice,
   sendNotificationToUser,
@@ -1808,6 +1869,7 @@ module.exports = {
   sendKomplainStatusUpdateNotification,
   sendKomplainCompletionNotification,
   sendKomplainAdminNoteNotification,
+  sendKomplainLeaderNoteNotification,
   sendKomplainRejectedNotification,
   sendKomplainReprocessedNotification,
   sendKomplainRevisionNotification,

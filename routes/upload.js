@@ -527,42 +527,15 @@ router.post(
 
 // Upload multiple files
 router.post("/files", uploadMultiple, (req, res) => {
-  console.log("📁 Upload request received");
-  console.log("📁 Request headers:", req.headers);
-  console.log("📁 Request body type:", typeof req.body);
-  console.log("📁 Files:", req.files ? req.files.length : 0);
-  console.log(
-    "📁 Files details:",
-    req.files
-      ? req.files.map((f) => ({
-          fieldname: f.fieldname,
-          originalname: f.originalname,
-          mimetype: f.mimetype,
-          size: f.size,
-          path: f.path,
-        }))
-      : "No files"
-  );
-
   try {
     if (!req.files || req.files.length === 0) {
-      console.log("❌ No files uploaded");
       return res.status(400).json({
         success: false,
         message: "No files uploaded",
       });
     }
 
-    console.log("📁 Processing uploaded files...");
-    const uploadedFiles = req.files.map((file, index) => {
-      console.log(`📁 Processing file ${index + 1}:`, {
-        fieldname: file.fieldname,
-        originalname: file.originalname,
-        mimetype: file.mimetype,
-        size: file.size,
-        path: file.path,
-      });
-
+    const uploadedFiles = req.files.map((file) => {
       // Create relative path for database storage
       const relativePath = path.relative(
         path.join(__dirname, "../uploads"),
@@ -578,23 +551,16 @@ router.post("/files", uploadMultiple, (req, res) => {
         url: `/uploads/${relativePath.replace(/\\/g, "/")}`, // URL for accessing the file
       };
 
-      console.log("📁 File processed:", fileInfo);
       return fileInfo;
     });
 
-    console.log(
-      "✅ Upload successful, returning:",
-      uploadedFiles.length,
-      "files"
-    );
     res.json({
       success: true,
       message: "Files uploaded successfully",
       data: uploadedFiles,
     });
   } catch (error) {
-    console.error("❌ Error uploading files:", error);
-    console.error("❌ Error stack:", error.stack);
+    console.error("Error uploading files:", error);
     res.status(500).json({
       success: false,
       message: "Error uploading files",

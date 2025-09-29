@@ -67,17 +67,8 @@ router.get('/', authenticateToken, async (req, res) => {
         { keterangan_tugas: { [Op.like]: searchTerm } }
       ];
       
-      // Also search in related users
-      includeClause = includeClause.map(include => ({
-        ...include,
-        where: {
-          [Op.or]: [
-            { nama: { [Op.like]: searchTerm } },
-            { email: { [Op.like]: searchTerm } }
-          ]
-        },
-        required: false
-      }));
+      // Keep include clause as is - don't modify it for search
+      // The search will be handled by the main whereClause
     }
 
     const tasks = await DaftarTugas.findAndCountAll({
@@ -273,6 +264,16 @@ router.put('/:id', authenticateToken, async (req, res) => {
         return res.status(400).json({
           success: false,
           message: 'Rating harus berupa angka 1-5'
+        });
+      }
+    }
+
+    // Validasi lampiran wajib jika status selesai
+    if (status === 'selesai') {
+      if (!lampiran || !Array.isArray(lampiran) || lampiran.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Lampiran wajib diisi saat menyelesaikan tugas'
         });
       }
     }

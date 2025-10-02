@@ -77,7 +77,7 @@ async function fixAnekaGrafikImages() {
 
             // Fix old IP addresses
             if (fixedUrl.includes('192.168.0.107:3000')) {
-              fixedUrl = fixedUrl.replace('http://192.168.0.107:3000', '');
+              fixedUrl = fixedUrl.replace('https://bosgilserver.cloud', '');
               console.log(`🔧 Fixed old IP: ${img.url} -> ${fixedUrl}`);
               hasChanges = true;
             }
@@ -100,7 +100,7 @@ async function fixAnekaGrafikImages() {
 
             // Remove old IP addresses from serverPath
             if (fixedServerPath.includes('192.168.0.107:3000')) {
-              fixedServerPath = fixedServerPath.replace('http://192.168.0.107:3000', '');
+              fixedServerPath = fixedServerPath.replace('https://bosgilserver.cloud', '');
               console.log(`🔧 Fixed serverPath: ${img.serverPath} -> ${fixedServerPath}`);
               hasChanges = true;
             }

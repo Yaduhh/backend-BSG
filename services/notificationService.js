@@ -37,7 +37,7 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
       return false;
     }
     
-    console.log(`✅ Token validation passed`);}
+    console.log(`✅ Token validation passed`);
 
     // Construct a message
     const message = {

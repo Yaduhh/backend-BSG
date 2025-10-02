@@ -3,7 +3,7 @@ const User = require('../models/User');
 
 const updateRoles = async () => {
   try {
-    console.log('🔄 Updating user roles...');
+    // Updating user roles silently
     
     // Update role lama ke role baru
     const updates = [
@@ -26,9 +26,7 @@ const updateRoles = async () => {
         }
       );
       
-      if (result[0] > 0) {
-        console.log(`✅ Updated ${result[0]} users from '${update.oldRole}' to '${update.newRole}'`);
-      }
+      // Role update processed silently
     }
     
     console.log('✅ Role update completed!');

@@ -28,13 +28,7 @@ if (fs.existsSync(envPath)) {
   });
 }
 
-// Debug environment variables
-console.log('🔍 Environment Variables Debug:');
-console.log('🔍 envConfig.API_BASE_URL:', envConfig.API_BASE_URL || 'not set');
-console.log('🔍 envConfig.DB_HOST:', envConfig.DB_HOST || 'not set');
-console.log('🔍 envConfig.NODE_ENV:', envConfig.NODE_ENV || 'not set');
-console.log('🔍 envConfig.PORT:', envConfig.PORT || 'not set');
-console.log('🔍 envConfig.FRONTEND_URL:', envConfig.FRONTEND_URL || 'not set');
+// Environment variables loaded silently
 
 const API_CONFIG = {
     // Base URLs - gunakan localhost untuk development
@@ -86,9 +80,7 @@ const API_CONFIG = {
     },
 };
 
-// Debug final config
-console.log('🔍 Final API_CONFIG.BASE_URL:', API_CONFIG.BASE_URL);
-console.log('🔍 Final API_CONFIG.DATABASE.HOST:', API_CONFIG.DATABASE.HOST);
+// Configuration loaded silently
 
 // Helper functions
 const getDatabaseUrl = () => {

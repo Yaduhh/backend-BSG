@@ -2,7 +2,7 @@ const { sequelize } = require('../config/database');
 
 const createChatTables = async () => {
   try {
-    console.log('🔄 Creating chat tables...');
+    // Creating chat tables silently
     
     // Create chat_rooms table
     await sequelize.query(`
@@ -69,15 +69,15 @@ const createChatTables = async () => {
         MODIFY expo_token VARCHAR(190) NULL,
         ADD UNIQUE KEY unique_user_device (user_id, device_id)
       `);
-      console.log('🔧 Adjusted user_devices column lengths and re-created unique index');
+      // Adjusted user_devices column lengths and re-created unique index
     } catch (e) {
       // Ignore if index/columns already adjusted
       if (e && e.message) {
-        console.log('ℹ️ Skipping user_devices adjust step:', e.message);
+        // Skipping user_devices adjust step
       }
     }
     
-    console.log('✅ Chat tables created successfully!');
+    // Chat tables created successfully
     
   } catch (error) {
     console.error('❌ Error creating chat tables:', error);

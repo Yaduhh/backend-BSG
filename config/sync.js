@@ -6,7 +6,7 @@ const { createChatTables } = require('../scripts/createChatTables');
 
 const syncDatabase = async () => {
   try {
-    console.log('🔄 Syncing database...');
+    // Syncing database silently
 
     // Pastikan tabel chat & user_devices dibuat/diperbaiki dulu (panjang kolom & index aman)
     await createChatTables();

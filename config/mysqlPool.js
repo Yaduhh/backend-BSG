@@ -36,13 +36,7 @@ const DB_USER = envConfig.DB_USER || process.env.DB_USER || 'root';
 const DB_PASSWORD = envConfig.DB_PASSWORD || process.env.DB_PASSWORD || '';
 const DB_NAME = envConfig.DB_NAME || process.env.DB_NAME || 'sistem_bosgil_group';
 
-console.log('🔧 MySQL Pool Config:', {
-  host: DB_HOST,
-  port: DB_PORT,
-  user: DB_USER,
-  database: DB_NAME,
-  password: DB_PASSWORD ? '***' : 'empty'
-});
+// MySQL Pool configuration loaded silently
 
 // Buat connection pool dengan konfigurasi yang valid
 const pool = mysql.createPool({
@@ -61,7 +55,6 @@ const pool = mysql.createPool({
 const testPoolConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ MySQL Pool connection successful');
     connection.release();
     return true;
   } catch (error) {

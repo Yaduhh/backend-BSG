@@ -17,8 +17,6 @@ if (fs.existsSync(envPath)) {
     .replace(/\r\n/g, '\n') // Normalize line endings
     .replace(/\r/g, '\n');
 
-  console.log('📄 Reading .env file from:', envPath);
-
   cleanContent.split('\n').forEach(line => {
     const trimmedLine = line.trim();
     if (trimmedLine && !trimmedLine.startsWith('#')) {
@@ -27,12 +25,9 @@ if (fs.existsSync(envPath)) {
         const cleanKey = key.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
         const cleanValue = value.trim().replace(/[\x00-\x1F\x7F-\x9F]/g, ''); // Remove control characters
         envConfig[cleanKey] = cleanValue;
-        console.log(`📝 Parsed: ${cleanKey} = ${cleanValue}`);
       }
     }
   });
-
-  console.log('📝 Final envConfig:', envConfig);
 } else if (fs.existsSync(configPath)) {
   // Baca file config.env sebagai alternatif
   const configContent = fs.readFileSync(configPath, 'utf8');
@@ -80,12 +75,7 @@ if (!DB_NAME || !DB_HOST || !DB_USER || !DB_DIALECT) {
   throw new Error('Database configuration tidak lengkap. Pastikan file .env berisi DB_NAME, DB_HOST, DB_USER, dan DB_DIALECT');
 }
 
-console.log('🔧 Environment Variables from .env file:');
-console.log('DB_NAME:', DB_NAME);
-console.log('DB_HOST:', DB_HOST);
-console.log('DB_USER:', DB_USER);
-console.log('DB_PASSWORD:', DB_PASSWORD);
-console.log('DB_DIALECT:', DB_DIALECT);
+// Environment variables loaded silently
 
 const sequelize = new Sequelize(
   DB_NAME,
@@ -95,7 +85,7 @@ const sequelize = new Sequelize(
     host: DB_HOST,
     port: DB_PORT,
     dialect: DB_DIALECT,
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    logging: false, // Disable SQL query logging
     pool: {
       max: 5,
       min: 0,

@@ -46,39 +46,13 @@ if (!admin.apps.length) {
   console.log('✅ Firebase Admin SDK already initialized');
 }
 
-// Create a new Expo SDK client with proper credentials
-let expo;
+// Create a new Expo SDK client
+// Note: We'll use Firebase Admin SDK for FCM v1 API directly
+const expo = new Expo({
+  useFcmV1: true,
+});
 
-// Initialize Expo SDK with Firebase credentials
-const initializeExpoSDK = async () => {
-  try {
-    // Get the initialized Firebase app
-    const app = admin.app();
-    
-    // Get access token from Firebase Admin SDK
-    const credential = app.options.credential;
-    const accessToken = await credential.getAccessToken();
-    
-    console.log('🔑 Firebase access token obtained for Expo SDK');
-    
-    expo = new Expo({
-      useFcmV1: true,
-      accessToken: accessToken.access_token
-    });
-    
-    console.log('✅ Expo SDK initialized with Firebase credentials');
-  } catch (error) {
-    console.error('❌ Failed to initialize Expo SDK with Firebase credentials:', error);
-    // Fallback to basic Expo SDK
-    expo = new Expo({
-      useFcmV1: true
-    });
-    console.log('⚠️ Using Expo SDK without Firebase credentials (fallback)');
-  }
-};
-
-// Initialize Expo SDK after Firebase is ready
-initializeExpoSDK();
+console.log('✅ Expo SDK initialized with FCM v1 support');
 
 // Rate limiting for notifications (prevent spam)
 const notificationRateLimit = new Map();
@@ -101,7 +75,7 @@ const parsePihakTerkait = (pihakTerkait) => {
   return Array.isArray(pihakTerkait) ? pihakTerkait : [];
 };
 
-// Send notification to a single device using Expo SDK with Firebase credentials
+// Send notification to a single device using Firebase Admin SDK directly
 const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
   try {
     console.log(`📤 Sending notification to token: ${expoToken}`);
@@ -115,40 +89,75 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
     
     console.log(`✅ Token validation passed`);
 
-    // Construct a message
-    const message = {
-      to: expoToken,
-      sound: 'default',
-      title: title,
-      body: body,
-      data: data,
-    };
+    try {
+      // Try using Firebase Admin SDK directly for FCM
+      console.log(`🔥 Attempting to send via Firebase Admin SDK...`);
+      
+      const message = {
+        token: expoToken,
+        notification: {
+          title: title,
+          body: body,
+        },
+        data: {
+          ...data,
+          // Convert all data values to strings (FCM requirement)
+          ...(Object.keys(data).reduce((acc, key) => {
+            acc[key] = String(data[key]);
+            return acc;
+          }, {}))
+        },
+        android: {
+          priority: 'high',
+          notification: {
+            sound: 'default',
+            channelId: 'default'
+          }
+        }
+      };
 
-    console.log(`🚀 Sending notification via Expo SDK with Firebase credentials`);
+      const response = await admin.messaging().send(message);
+      console.log(`✅ Firebase Admin SDK notification sent successfully:`, response);
+      return true;
+      
+    } catch (firebaseError) {
+      console.error('❌ Firebase Admin SDK failed:', firebaseError.message);
+      console.log(`🔄 Falling back to Expo SDK...`);
+      
+      // Fallback to Expo SDK
+      const expoMessage = {
+        to: expoToken,
+        sound: 'default',
+        title: title,
+        body: body,
+        data: data,
+      };
 
-    // Send the message using Expo SDK
-    const chunks = expo.chunkPushNotifications([message]);
-    const tickets = [];
+      console.log(`🚀 Sending notification via Expo SDK fallback`);
 
-    for (let chunk of chunks) {
-      try {
-        console.log(`🚀 Sending chunk with ${chunk.length} messages`);
-        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        console.log(`📨 Received tickets:`, ticketChunk);
-        tickets.push(...ticketChunk);
-      } catch (error) {
-        console.error('❌ Error sending chunk:', error);
+      const chunks = expo.chunkPushNotifications([expoMessage]);
+      const tickets = [];
+
+      for (let chunk of chunks) {
+        try {
+          console.log(`🚀 Sending chunk with ${chunk.length} messages`);
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          console.log(`📨 Received tickets:`, ticketChunk);
+          tickets.push(...ticketChunk);
+        } catch (error) {
+          console.error('❌ Error sending chunk:', error);
+        }
       }
-    }
 
-    const success = tickets.length > 0 && tickets.some(ticket => ticket.status === 'ok');
-    console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
-    
-    if (!success && tickets.length > 0) {
-      console.error(`❌ Notification errors:`, tickets);
+      const success = tickets.length > 0 && tickets.some(ticket => ticket.status === 'ok');
+      console.log(`📊 Expo SDK result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
+      
+      if (!success && tickets.length > 0) {
+        console.error(`❌ Expo SDK errors:`, tickets);
+      }
+      
+      return success;
     }
-    
-    return success;
   } catch (error) {
     console.error('❌ Error sending notification to device:', error);
     return false;

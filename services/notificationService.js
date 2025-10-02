@@ -3,6 +3,8 @@ const { UserDevice } = require('../models');
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
+console.log('🚀 Starting Firebase Admin SDK initialization...');
+
 if (!admin.apps.length) {
   try {
     console.log('🔄 Initializing Firebase Admin SDK...');
@@ -18,7 +20,11 @@ if (!admin.apps.length) {
     } else {
       // Fallback to local file (for development)
       console.log('📄 Using local service account file');
+      console.log('📂 Attempting to require: ../firebase-service-account.json');
+      
       const serviceAccount = require('../firebase-service-account.json');
+      console.log('📋 Service account loaded, project_id:', serviceAccount.project_id);
+      
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         projectId: serviceAccount.project_id
@@ -32,7 +38,8 @@ if (!admin.apps.length) {
     console.log('🔥 Firebase project ID:', app.options.projectId);
     
   } catch (error) {
-    console.error('❌ Failed to initialize Firebase Admin SDK:', error);
+    console.error('❌ Failed to initialize Firebase Admin SDK:', error.message);
+    console.error('❌ Full error:', error);
     console.error('Make sure firebase-service-account.json exists or GOOGLE_APPLICATION_CREDENTIALS is set');
   }
 } else {

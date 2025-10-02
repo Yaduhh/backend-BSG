@@ -95,6 +95,9 @@ const server = http.createServer(app);
 const webSocketService = require('./services/webSocketService');
 const wsService = webSocketService(server);
 
+// Initialize notification service (this will initialize Firebase Admin SDK)
+require('./services/notificationService');
+
 // Make wsService available to all routes
 app.set('wsService', wsService);
 

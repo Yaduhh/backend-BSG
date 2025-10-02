@@ -1,7 +1,8 @@
 const { Expo } = require('expo-server-sdk');
 const { UserDevice } = require('../models');
+const fetch = require('node-fetch');
 
-// Create a new Expo SDK client
+// Create a new Expo SDK client (fallback)
 const expo = new Expo();
 
 // Rate limiting for notifications (prevent spam)
@@ -25,7 +26,7 @@ const parsePihakTerkait = (pihakTerkait) => {
   return Array.isArray(pihakTerkait) ? pihakTerkait : [];
 };
 
-// Send notification to a single device
+// Send notification to a single device using direct HTTP request
 const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
   try {
     console.log(`📤 Sending notification to token: ${expoToken}`);
@@ -39,7 +40,7 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
     
     console.log(`✅ Token validation passed`);
 
-    // Construct a message
+    // Construct the message
     const message = {
       to: expoToken,
       sound: 'default',
@@ -48,26 +49,39 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
       data: data,
     };
 
-    // Send the message
-    const chunks = expo.chunkPushNotifications([message]);
-    const tickets = [];
+    console.log(`🚀 Sending notification via HTTP request`);
+    
+    // Send directly to Expo Push API
+    const response = await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Accept-encoding': 'gzip, deflate',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(message),
+    });
 
-    for (let chunk of chunks) {
-      try {
-        console.log(`🚀 Sending chunk with ${chunk.length} messages`);
-        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-        console.log(`📨 Received tickets:`, ticketChunk);
-        tickets.push(...ticketChunk);
-      } catch (error) {
-        console.error('❌ Error sending chunk:', error);
+    const result = await response.json();
+    console.log(`📨 Received response:`, result);
+
+    // Check if the notification was sent successfully
+    if (result.data && result.data[0]) {
+      const ticket = result.data[0];
+      const success = ticket.status === 'ok';
+      console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}`);
+      
+      if (!success) {
+        console.error(`❌ Notification error:`, ticket);
       }
+      
+      return success;
     }
 
-    const success = tickets.length > 0;
-    console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
-    return success;
+    console.error(`❌ Unexpected response format:`, result);
+    return false;
   } catch (error) {
-    console.error('Error sending notification to device:', error);
+    console.error('❌ Error sending notification to device:', error);
     return false;
   }
 };

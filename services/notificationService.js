@@ -28,11 +28,16 @@ const parsePihakTerkait = (pihakTerkait) => {
 // Send notification to a single device
 const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
   try {
+    console.log(`📤 Sending notification to token: ${expoToken}`);
+    console.log(`📋 Title: ${title}, Body: ${body}`);
+    
     // Check that all your push tokens appear to be valid Expo push tokens
     if (!Expo.isExpoPushToken(expoToken)) {
-      console.error(`Push token ${expoToken} is not a valid Expo push token`);
+      console.error(`❌ Push token ${expoToken} is not a valid Expo push token`);
       return false;
     }
+    
+    console.log(`✅ Token validation passed`);}
 
     // Construct a message
     const message = {
@@ -49,14 +54,18 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
 
     for (let chunk of chunks) {
       try {
+        console.log(`🚀 Sending chunk with ${chunk.length} messages`);
         const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        console.log(`📨 Received tickets:`, ticketChunk);
         tickets.push(...ticketChunk);
       } catch (error) {
-        console.error('Error sending chunk:', error);
+        console.error('❌ Error sending chunk:', error);
       }
     }
 
-    return tickets.length > 0;
+    const success = tickets.length > 0;
+    console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
+    return success;
   } catch (error) {
     console.error('Error sending notification to device:', error);
     return false;

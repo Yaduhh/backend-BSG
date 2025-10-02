@@ -2,6 +2,9 @@ const { app, server, sequelize, testConnection } = require('./app');
 const { syncDatabase } = require('./config/sync');
 const { API_CONFIG } = require('./config/constants');
 
+// Initialize notification service (this will initialize Firebase Admin SDK)
+require('./services/notificationService');
+
 // Sync database dan jalankan server
 const startServer = async () => {
   try {

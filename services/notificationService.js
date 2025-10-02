@@ -1,9 +1,24 @@
 const { Expo } = require('expo-server-sdk');
 const { UserDevice } = require('../models');
-const fetch = require('node-fetch');
+const admin = require('firebase-admin');
 
-// Create a new Expo SDK client (fallback)
-const expo = new Expo();
+// Initialize Firebase Admin SDK
+if (!admin.apps.length) {
+  try {
+    const serviceAccount = require('../firebase-service-account.json');
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin SDK initialized');
+  } catch (error) {
+    console.error('❌ Failed to initialize Firebase Admin SDK:', error);
+  }
+}
+
+// Create a new Expo SDK client with proper credentials
+const expo = new Expo({
+  useFcmV1: true,
+});
 
 // Rate limiting for notifications (prevent spam)
 const notificationRateLimit = new Map();
@@ -26,7 +41,7 @@ const parsePihakTerkait = (pihakTerkait) => {
   return Array.isArray(pihakTerkait) ? pihakTerkait : [];
 };
 
-// Send notification to a single device using direct HTTP request
+// Send notification to a single device using Expo SDK with Firebase credentials
 const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
   try {
     console.log(`📤 Sending notification to token: ${expoToken}`);
@@ -40,7 +55,7 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
     
     console.log(`✅ Token validation passed`);
 
-    // Construct the message
+    // Construct a message
     const message = {
       to: expoToken,
       sound: 'default',
@@ -49,37 +64,31 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
       data: data,
     };
 
-    console.log(`🚀 Sending notification via HTTP request`);
-    
-    // Send directly to Expo Push API
-    const response = await fetch('https://exp.host/--/api/v2/push/send', {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
+    console.log(`🚀 Sending notification via Expo SDK with Firebase credentials`);
 
-    const result = await response.json();
-    console.log(`📨 Received response:`, result);
+    // Send the message using Expo SDK
+    const chunks = expo.chunkPushNotifications([message]);
+    const tickets = [];
 
-    // Check if the notification was sent successfully
-    if (result.data && result.data[0]) {
-      const ticket = result.data[0];
-      const success = ticket.status === 'ok';
-      console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}`);
-      
-      if (!success) {
-        console.error(`❌ Notification error:`, ticket);
+    for (let chunk of chunks) {
+      try {
+        console.log(`🚀 Sending chunk with ${chunk.length} messages`);
+        const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+        console.log(`📨 Received tickets:`, ticketChunk);
+        tickets.push(...ticketChunk);
+      } catch (error) {
+        console.error('❌ Error sending chunk:', error);
       }
-      
-      return success;
     }
 
-    console.error(`❌ Unexpected response format:`, result);
-    return false;
+    const success = tickets.length > 0 && tickets.some(ticket => ticket.status === 'ok');
+    console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
+    
+    if (!success && tickets.length > 0) {
+      console.error(`❌ Notification errors:`, tickets);
+    }
+    
+    return success;
   } catch (error) {
     console.error('❌ Error sending notification to device:', error);
     return false;

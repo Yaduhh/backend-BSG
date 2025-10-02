@@ -89,9 +89,9 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
     
     console.log(`✅ Token validation passed`);
 
-    // Get Firebase access token for Expo SDK
+    // Use direct HTTP request to Expo Push API with Firebase credentials
     try {
-      console.log(`🔑 Getting Firebase access token for Expo SDK...`);
+      console.log(`🔑 Getting Firebase access token for direct HTTP request...`);
       
       // Get access token from Firebase Admin SDK
       const app = admin.app();
@@ -100,12 +100,7 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
       
       console.log(`✅ Firebase access token obtained`);
       
-      // Create Expo SDK instance with Firebase credentials
-      const expoWithCredentials = new Expo({
-        useFcmV1: true,
-        accessToken: accessToken.access_token
-      });
-      
+      // Prepare message for Expo Push API
       const message = {
         to: expoToken,
         sound: 'default',
@@ -114,33 +109,33 @@ const sendNotificationToDevice = async (expoToken, title, body, data = {}) => {
         data: data,
       };
 
-      console.log(`🚀 Sending notification via Expo SDK with Firebase credentials`);
+      console.log(`🚀 Sending notification via direct HTTP to Expo Push API`);
 
-      const chunks = expoWithCredentials.chunkPushNotifications([message]);
-      const tickets = [];
+      // Send directly to Expo Push API with Firebase credentials
+      const response = await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken.access_token}`
+        },
+        body: JSON.stringify(message)
+      });
 
-      for (let chunk of chunks) {
-        try {
-          console.log(`🚀 Sending chunk with ${chunk.length} messages`);
-          const ticketChunk = await expoWithCredentials.sendPushNotificationsAsync(chunk);
-          console.log(`📨 Received tickets:`, ticketChunk);
-          tickets.push(...ticketChunk);
-        } catch (error) {
-          console.error('❌ Error sending chunk:', error);
-        }
+      const result = await response.json();
+      console.log(`📨 Direct HTTP response:`, result);
+
+      if (response.ok && result.data && result.data.status === 'ok') {
+        console.log(`✅ Direct HTTP notification sent successfully`);
+        return true;
+      } else {
+        console.error(`❌ Direct HTTP failed:`, result);
+        throw new Error(`HTTP ${response.status}: ${JSON.stringify(result)}`);
       }
-
-      const success = tickets.length > 0 && tickets.some(ticket => ticket.status === 'ok');
-      console.log(`📊 Notification result: ${success ? 'SUCCESS' : 'FAILED'}, tickets: ${tickets.length}`);
       
-      if (!success && tickets.length > 0) {
-        console.error(`❌ Notification errors:`, tickets);
-      }
-      
-      return success;
-      
-    } catch (credentialError) {
-      console.error('❌ Failed to get Firebase credentials:', credentialError.message);
+    } catch (httpError) {
+      console.error('❌ Direct HTTP failed:', httpError.message);
       console.log(`🔄 Falling back to basic Expo SDK...`);
       
       // Fallback to basic Expo SDK

@@ -47,9 +47,38 @@ if (!admin.apps.length) {
 }
 
 // Create a new Expo SDK client with proper credentials
-const expo = new Expo({
-  useFcmV1: true,
-});
+let expo;
+
+// Initialize Expo SDK with Firebase credentials
+const initializeExpoSDK = async () => {
+  try {
+    // Get the initialized Firebase app
+    const app = admin.app();
+    
+    // Get access token from Firebase Admin SDK
+    const credential = app.options.credential;
+    const accessToken = await credential.getAccessToken();
+    
+    console.log('🔑 Firebase access token obtained for Expo SDK');
+    
+    expo = new Expo({
+      useFcmV1: true,
+      accessToken: accessToken.access_token
+    });
+    
+    console.log('✅ Expo SDK initialized with Firebase credentials');
+  } catch (error) {
+    console.error('❌ Failed to initialize Expo SDK with Firebase credentials:', error);
+    // Fallback to basic Expo SDK
+    expo = new Expo({
+      useFcmV1: true
+    });
+    console.log('⚠️ Using Expo SDK without Firebase credentials (fallback)');
+  }
+};
+
+// Initialize Expo SDK after Firebase is ready
+initializeExpoSDK();
 
 // Rate limiting for notifications (prevent spam)
 const notificationRateLimit = new Map();

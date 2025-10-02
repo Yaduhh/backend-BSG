@@ -11,6 +11,12 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Firebase service account keys (sensitive)
+firebase-service-account.json
+*-service-account.json
+firebase-adminsdk-*.json
+google-services.json
+
 # Uploads folder
 uploads/
 

@@ -5,24 +5,38 @@ const admin = require('firebase-admin');
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
   try {
+    console.log('🔄 Initializing Firebase Admin SDK...');
+    console.log('📁 GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
+    
     // Try to load from environment variable first
     if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      console.log('🔑 Using environment credentials');
       admin.initializeApp({
         credential: admin.credential.applicationDefault()
       });
       console.log('✅ Firebase Admin SDK initialized from environment');
     } else {
       // Fallback to local file (for development)
+      console.log('📄 Using local service account file');
       const serviceAccount = require('../firebase-service-account.json');
       admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential: admin.credential.cert(serviceAccount),
+        projectId: serviceAccount.project_id
       });
       console.log('✅ Firebase Admin SDK initialized from local file');
     }
+    
+    // Test Firebase connection
+    const app = admin.app();
+    console.log('🔥 Firebase app name:', app.name);
+    console.log('🔥 Firebase project ID:', app.options.projectId);
+    
   } catch (error) {
     console.error('❌ Failed to initialize Firebase Admin SDK:', error);
     console.error('Make sure firebase-service-account.json exists or GOOGLE_APPLICATION_CREDENTIALS is set');
   }
+} else {
+  console.log('✅ Firebase Admin SDK already initialized');
 }
 
 // Create a new Expo SDK client with proper credentials

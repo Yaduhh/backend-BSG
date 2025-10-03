@@ -7,11 +7,15 @@ class OmsetHarian {
         return await getConnection();
     }
 
-    static async getAll(page = 1, limit = 10, search = '', dateFilter = '') {
+    static async getAll(page = 1, limit = 10, search = '', date = '') {
         let connection;
         try {
             connection = await this.getConnection();
-            const offset = (page - 1) * limit;
+            
+            // Validasi dan konversi parameter
+            const pageNum = parseInt(page) || 1;
+            const limitNum = parseInt(limit) || 10;
+            const offset = (pageNum - 1) * limitNum;
             let whereClause = 'WHERE oh.status_deleted = 0';
             const params = [];
 
@@ -20,9 +24,9 @@ class OmsetHarian {
                 params.push(`%${search}%`, `%${search}%`);
             }
 
-            if (dateFilter) {
+            if (date) {
                 whereClause += ' AND oh.tanggal_omset = ?';
-                params.push(dateFilter);
+                params.push(date);
             }
 
             const query = `
@@ -49,17 +53,23 @@ class OmsetHarian {
         ${whereClause}
       `;
 
-            const [rows] = await connection.execute(query, [...params, parseInt(limit), parseInt(offset)]);
+            // Debug logging
+            console.log('🔍 Debug - Query params:', [...params, parseInt(limitNum), parseInt(offset)]);
+            console.log('🔍 Debug - Params array:', params);
+            console.log('🔍 Debug - Limit:', limitNum, 'Offset:', offset);
+            console.log('🔍 Debug - Where clause:', whereClause);
+            
+            const [rows] = await connection.execute(query, [...params, parseInt(limitNum), parseInt(offset)]);
             const [countResult] = await connection.execute(countQuery, params);
 
             return {
                 success: true,
                 data: rows,
                 pagination: {
-                    currentPage: page,
-                    totalPages: Math.ceil(countResult[0].total / limit),
+                    currentPage: pageNum,
+                    totalPages: Math.ceil(countResult[0].total / parseInt(limitNum)),
                     totalItems: countResult[0].total,
-                    itemsPerPage: limit
+                    itemsPerPage: parseInt(limitNum)
                 }
             };
         } catch (error) {

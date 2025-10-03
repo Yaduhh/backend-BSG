@@ -66,7 +66,7 @@ class LaporanKeuangan {
             console.log('LaporanKeuangan.getAll - query:', query);
             console.log('LaporanKeuangan.getAll - query params:', [...params, limit, offset]);
             
-            const [rows] = await connection.execute(query, [...params, limit, offset]);
+            const [rows] = await connection.execute(query, [...params, parseInt(limit), parseInt(offset)]);
             const [countResult] = await connection.execute(countQuery, params);
             
             console.log('LaporanKeuangan.getAll - rows count:', rows.length);

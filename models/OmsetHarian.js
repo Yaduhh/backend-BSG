@@ -49,7 +49,7 @@ class OmsetHarian {
         ${whereClause}
       `;
 
-            const [rows] = await connection.execute(query, [...params, limit, offset]);
+            const [rows] = await connection.execute(query, [...params, parseInt(limit), parseInt(offset)]);
             const [countResult] = await connection.execute(countQuery, params);
 
             return {

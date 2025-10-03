@@ -40,7 +40,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
-          lk.judul_laporan,
+          COALESCE(lk.judul_laporan, CONCAT('Laporan ', DATE_FORMAT(lk.tanggal_laporan, '%d %M %Y'))) as judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -90,7 +90,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
-          lk.judul_laporan,
+          COALESCE(lk.judul_laporan, CONCAT('Laporan ', DATE_FORMAT(lk.tanggal_laporan, '%d %M %Y'))) as judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -242,6 +242,28 @@ class LaporanKeuangan {
             return { success: true, data: rows };
         } catch (error) {
             console.error('Error in LaporanKeuangan.getAvailableMonths:', error);
+            return { success: false, error: error.message };
+        } finally {
+            if (connection) connection.release();
+        }
+    }
+
+    static async getStatistics() {
+        let connection;
+        try {
+            connection = await this.getConnection();
+            const query = `
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN YEAR(tanggal_laporan) = YEAR(CURDATE()) AND MONTH(tanggal_laporan) = MONTH(CURDATE()) THEN 1 END) as thisMonth,
+          COUNT(CASE WHEN YEAR(tanggal_laporan) = YEAR(CURDATE()) THEN 1 END) as thisYear
+        FROM laporan_keuangan
+        WHERE status_deleted = 0
+      `;
+            const [rows] = await connection.execute(query);
+            return { success: true, data: rows[0] };
+        } catch (error) {
+            console.error('Error in LaporanKeuangan.getStatistics:', error);
             return { success: false, error: error.message };
         } finally {
             if (connection) connection.release();

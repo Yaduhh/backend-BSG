@@ -1,11 +1,19 @@
 const { Expo } = require('expo-server-sdk');
 const { UserDevice } = require('../models');
-const admin = require('firebase-admin');
+// Opsional: firebase-admin bisa tidak terpasang di beberapa environment
+let admin = null;
+let FIREBASE_AVAILABLE = true;
+try {
+  admin = require('firebase-admin');
+} catch (e) {
+  FIREBASE_AVAILABLE = false;
+  console.warn('⚠️ firebase-admin tidak tersedia. Melewati inisialisasi Firebase Admin SDK. Detail:', e.message);
+}
 
 // Initialize Firebase Admin SDK
 console.log('🚀 Starting Firebase Admin SDK initialization...');
 
-if (!admin.apps.length) {
+if (FIREBASE_AVAILABLE && !admin.apps.length) {
   try {
     console.log('🔄 Initializing Firebase Admin SDK...');
     console.log('📁 GOOGLE_APPLICATION_CREDENTIALS:', process.env.GOOGLE_APPLICATION_CREDENTIALS);
@@ -42,8 +50,10 @@ if (!admin.apps.length) {
     console.error('❌ Full error:', error);
     console.error('Make sure firebase-service-account.json exists or GOOGLE_APPLICATION_CREDENTIALS is set');
   }
-} else {
+} else if (FIREBASE_AVAILABLE) {
   console.log('✅ Firebase Admin SDK already initialized');
+} else {
+  console.log('ℹ️ Melewati inisialisasi Firebase karena modul firebase-admin tidak tersedia.');
 }
 
 // Create a new Expo SDK client

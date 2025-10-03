@@ -54,7 +54,7 @@ exports.list = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Owner can see all statistics (read-only preview)
-    const result = await LaporanKeuangan.getStatistics();
+    const result = await LaporanKeuangan.getStats();
 
     if (!result.success) {
       console.error('Error fetching statistics for owner:', result.error);
@@ -62,9 +62,9 @@ exports.getStatistics = async (req, res) => {
       return res.json({ 
         success: true,
         data: {
-          total: 0,
-          thisMonth: 0,
-          thisYear: 0
+          total_records: 0,
+          total_days: 0,
+          total_users: 0
         }
       });
     }
@@ -79,9 +79,9 @@ exports.getStatistics = async (req, res) => {
     res.json({ 
       success: true,
       data: {
-        total: 0,
-        thisMonth: 0,
-        thisYear: 0
+        total_records: 0,
+        total_days: 0,
+        total_users: 0
       }
     });
   }

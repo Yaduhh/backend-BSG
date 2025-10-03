@@ -11,7 +11,11 @@ class LaporanKeuangan {
         let connection;
         try {
             connection = await this.getConnection();
-            const offset = (page - 1) * limit;
+            // Sanitasi page & limit agar selalu integer valid untuk LIMIT/OFFSET
+            const safePage = Number.isFinite(Number(page)) && Number(page) > 0 ? parseInt(page, 10) : 1;
+            const rawLimit = Number(limit);
+            const safeLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(parseInt(rawLimit, 10), 100) : 10;
+            const offset = (safePage - 1) * safeLimit;
             let whereClause = 'WHERE lk.status_deleted = 0';
             const params = [];
 
@@ -61,17 +65,17 @@ class LaporanKeuangan {
         ${whereClause}
       `;
 
-            const [rows] = await connection.execute(query, [...params, limit, offset]);
+            const [rows] = await connection.execute(query, [...params, safeLimit, offset]);
             const [countResult] = await connection.execute(countQuery, params);
 
             return {
                 success: true,
                 data: rows,
                 pagination: {
-                    currentPage: page,
-                    totalPages: Math.ceil(countResult[0].total / limit),
+                    currentPage: safePage,
+                    totalPages: Math.ceil(countResult[0].total / safeLimit),
                     totalItems: countResult[0].total,
-                    itemsPerPage: limit
+                    itemsPerPage: safeLimit
                 }
             };
         } catch (error) {

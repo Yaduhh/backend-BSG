@@ -6,6 +6,7 @@ exports.list = async (req, res) => {
     const { page = 1, limit = 10, search = '', date = '', month = '' } = req.query;
 
     // Owner can see all laporan keuangan (read-only preview)
+    console.log('OwnerLaporanKeuanganController.list - params:', { page, limit, search, date, month });
     const result = await LaporanKeuangan.getAll(
       parseInt(page),
       parseInt(limit),
@@ -13,6 +14,8 @@ exports.list = async (req, res) => {
       date,
       month
     );
+
+    console.log('OwnerLaporanKeuanganController.list - result:', result);
 
     if (!result.success) {
       console.error('Error fetching laporan keuangan for owner:', result.error);

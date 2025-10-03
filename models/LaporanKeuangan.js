@@ -14,6 +14,8 @@ class LaporanKeuangan {
             const offset = (page - 1) * limit;
             let whereClause = 'WHERE lk.status_deleted = 0';
             const params = [];
+            
+            console.log('LaporanKeuangan.getAll - params:', { page, limit, search, dateFilter, monthFilter });
 
             if (search) {
                 whereClause += ' AND (lk.isi_laporan LIKE ? OR u.nama LIKE ?)';
@@ -61,8 +63,14 @@ class LaporanKeuangan {
         ${whereClause}
       `;
 
+            console.log('LaporanKeuangan.getAll - query:', query);
+            console.log('LaporanKeuangan.getAll - query params:', [...params, limit, offset]);
+            
             const [rows] = await connection.execute(query, [...params, limit, offset]);
             const [countResult] = await connection.execute(countQuery, params);
+            
+            console.log('LaporanKeuangan.getAll - rows count:', rows.length);
+            console.log('LaporanKeuangan.getAll - total count:', countResult[0].total);
 
             return {
                 success: true,

@@ -230,11 +230,6 @@ class LaporanKeuangan {
         }
     }
 
-    // Backward-compatible alias for older controllers calling getStatistics
-    static async getStatistics() {
-        return this.getStats();
-    }
-
     static async getAvailableMonths() {
         let connection;
         try {

@@ -7,6 +7,8 @@ const { authenticateToken } = require('../middleware/auth');
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { page = 1, limit = 10, search = '', date = '' } = req.query;
+        
+        console.log('🔍 Backend - Fetching omset with params:', { page, limit, search, date });
 
         const result = await OmsetHarian.getAll(
             parseInt(page),
@@ -14,6 +16,12 @@ router.get('/', authenticateToken, async (req, res) => {
             search,
             date
         );
+
+        console.log('📊 Backend - Omset getAll result:', {
+            success: result.success,
+            dataLength: result.data ? result.data.length : 'no data',
+            pagination: result.pagination
+        });
 
         if (!result.success) {
             console.error('Error fetching omset harian:', result.error);
@@ -30,6 +38,7 @@ router.get('/', authenticateToken, async (req, res) => {
             });
         }
 
+        console.log('✅ Backend - Sending response with', result.data.length, 'records');
         res.json(result);
     } catch (error) {
         console.error('Error in GET /omset-harian:', error);

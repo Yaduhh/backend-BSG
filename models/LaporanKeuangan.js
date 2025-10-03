@@ -53,7 +53,7 @@ class LaporanKeuangan {
         LEFT JOIN users u ON lk.id_user = u.id
         ${whereClause}
         ORDER BY lk.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
       `;
 
             const countQuery = `
@@ -64,9 +64,9 @@ class LaporanKeuangan {
       `;
 
             console.log('LaporanKeuangan.getAll - query:', query);
-            console.log('LaporanKeuangan.getAll - query params:', [...params, limit, offset]);
+            console.log('LaporanKeuangan.getAll - query params:', params);
             
-            const [rows] = await connection.execute(query, [...params, parseInt(limit), parseInt(offset)]);
+            const [rows] = await connection.execute(query, params);
             const [countResult] = await connection.execute(countQuery, params);
             
             console.log('LaporanKeuangan.getAll - rows count:', rows.length);

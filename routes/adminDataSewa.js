@@ -4,11 +4,21 @@ const DataSewa = require('../models/DataSewa');
 const { authenticateToken } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../uploads/data-sewa/');
+    // Pastikan folder tujuan ada, jika belum ada maka buat otomatis
+    try {
+      if (!fs.existsSync(uploadPath)) {
+        fs.mkdirSync(uploadPath, { recursive: true });
+      }
+    } catch (err) {
+      // Jika gagal membuat folder, kembalikan error ke multer
+      return cb(err);
+    }
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {

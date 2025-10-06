@@ -58,7 +58,7 @@ class MediaSosial {
         LEFT JOIN users u ON ms.id_user = u.id
         ${where}
         ORDER BY ms.tanggal_laporan DESC, ms.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
       `;
 
       const countQuery = `
@@ -68,7 +68,7 @@ class MediaSosial {
         ${where}
       `;
 
-      const [rows] = await connection.execute(query, [...params, limit, offset]);
+      const [rows] = await connection.execute(query, params);
       const [countRows] = await connection.execute(countQuery, params);
 
       return {

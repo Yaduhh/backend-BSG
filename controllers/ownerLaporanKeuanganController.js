@@ -6,6 +6,7 @@ exports.list = async (req, res) => {
     const { page = 1, limit = 10, search = '', date = '', month = '' } = req.query;
 
     // Owner can see all laporan keuangan (read-only preview)
+    console.log('OwnerLaporanKeuanganController.list - params:', { page, limit, search, date, month });
     const result = await LaporanKeuangan.getAll(
       parseInt(page),
       parseInt(limit),
@@ -13,6 +14,8 @@ exports.list = async (req, res) => {
       date,
       month
     );
+
+    console.log('OwnerLaporanKeuanganController.list - result:', result);
 
     if (!result.success) {
       console.error('Error fetching laporan keuangan for owner:', result.error);
@@ -54,7 +57,7 @@ exports.list = async (req, res) => {
 exports.getStatistics = async (req, res) => {
   try {
     // Owner can see all statistics (read-only preview)
-    const result = await LaporanKeuangan.getStats();
+    const result = await LaporanKeuangan.getStatistics();
 
     if (!result.success) {
       console.error('Error fetching statistics for owner:', result.error);
@@ -62,9 +65,9 @@ exports.getStatistics = async (req, res) => {
       return res.json({ 
         success: true,
         data: {
-          total_records: 0,
-          total_days: 0,
-          total_users: 0
+          total: 0,
+          thisMonth: 0,
+          thisYear: 0
         }
       });
     }
@@ -79,9 +82,9 @@ exports.getStatistics = async (req, res) => {
     res.json({ 
       success: true,
       data: {
-        total_records: 0,
-        total_days: 0,
-        total_users: 0
+        total: 0,
+        thisMonth: 0,
+        thisYear: 0
       }
     });
   }

@@ -1,4 +1,13 @@
-const mysql = require('mysql2/promise');
+// Script untuk update OmsetHarian.js di VPS
+// Jalankan: node update-omset-vps.js
+
+const fs = require('fs');
+const path = require('path');
+
+const filePath = './backend/models/OmsetHarian.js';
+
+// Baca file yang sudah diperbaiki
+const fixedContent = `const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 class OmsetHarian {
@@ -21,7 +30,7 @@ class OmsetHarian {
 
             if (search) {
                 whereClause += ' AND (oh.isi_omset LIKE ? OR u.nama LIKE ?)';
-                params.push(`%${search}%`, `%${search}%`);
+                params.push(\`%\${search}%\`, \`%\${search}%\`);
             }
 
             if (date) {
@@ -29,7 +38,7 @@ class OmsetHarian {
                 params.push(date);
             }
 
-            const query = `
+            const query = \`
         SELECT 
           oh.id,
           oh.id_user,
@@ -41,17 +50,17 @@ class OmsetHarian {
           u.nama as user_nama
         FROM omset_harian oh
         LEFT JOIN users u ON oh.id_user = u.id
-        ${whereClause}
+        \${whereClause}
         ORDER BY oh.created_at DESC
-        LIMIT ${parseInt(limitNum)} OFFSET ${parseInt(offset)}
-      `;
+        LIMIT \${parseInt(limitNum)} OFFSET \${parseInt(offset)}
+      \`;
 
-            const countQuery = `
+            const countQuery = \`
         SELECT COUNT(*) as total
         FROM omset_harian oh
         LEFT JOIN users u ON oh.id_user = u.id
-        ${whereClause}
-      `;
+        \${whereClause}
+      \`;
 
             // Debug logging
             console.log('🔍 Debug - Query params:', params);
@@ -85,7 +94,7 @@ class OmsetHarian {
         let connection;
         try {
             connection = await this.getConnection();
-            const query = `
+            const query = \`
         SELECT 
           oh.id,
           oh.id_user,
@@ -98,7 +107,7 @@ class OmsetHarian {
         FROM omset_harian oh
         LEFT JOIN users u ON oh.id_user = u.id
         WHERE oh.id = ? AND oh.status_deleted = 0
-      `;
+      \`;
 
             const [rows] = await connection.execute(query, [id]);
 
@@ -119,10 +128,10 @@ class OmsetHarian {
         let connection;
         try {
             connection = await this.getConnection();
-            const query = `
+            const query = \`
         INSERT INTO omset_harian (id_user, tanggal_omset, isi_omset, images)
         VALUES (?, ?, ?, ?)
-      `;
+      \`;
 
             const [result] = await connection.execute(query, [
                 data.id_user,
@@ -144,11 +153,11 @@ class OmsetHarian {
         let connection;
         try {
             connection = await this.getConnection();
-            const query = `
+            const query = \`
         UPDATE omset_harian 
         SET tanggal_omset = ?, isi_omset = ?, images = ?, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND status_deleted = 0
-      `;
+      \`;
 
             const [result] = await connection.execute(query, [
                 data.tanggal_omset,
@@ -174,11 +183,11 @@ class OmsetHarian {
         let connection;
         try {
             connection = await this.getConnection();
-            const query = `
+            const query = \`
         UPDATE omset_harian 
         SET status_deleted = 1, updated_at = CURRENT_TIMESTAMP
         WHERE id = ? AND status_deleted = 0
-      `;
+      \`;
 
             const [result] = await connection.execute(query, [id]);
 
@@ -199,34 +208,34 @@ class OmsetHarian {
         let connection;
         try {
             connection = await this.getConnection();
-            const query = `
+            const query = \`
         SELECT 
           COUNT(*) as total_records
         FROM omset_harian 
         WHERE status_deleted = 0
-      `;
+      \`;
 
             const [rows] = await connection.execute(query);
 
             // Get current month stats
-            const currentMonthQuery = `
+            const currentMonthQuery = \`
         SELECT 
           COUNT(*) as total_this_month
         FROM omset_harian 
         WHERE status_deleted = 0 
         AND DATE_FORMAT(tanggal_omset, '%Y-%m') = DATE_FORMAT(CURDATE(), '%Y-%m')
-      `;
+      \`;
 
             const [currentMonthRows] = await connection.execute(currentMonthQuery);
 
             // Get current year stats
-            const currentYearQuery = `
+            const currentYearQuery = \`
         SELECT 
           COUNT(*) as total_this_year
         FROM omset_harian 
         WHERE status_deleted = 0 
         AND YEAR(tanggal_omset) = YEAR(CURDATE())
-      `;
+      \`;
 
             const [currentYearRows] = await connection.execute(currentYearQuery);
 
@@ -247,4 +256,10 @@ class OmsetHarian {
     }
 }
 
-module.exports = OmsetHarian; 
+module.exports = OmsetHarian;`;
+
+// Tulis file
+fs.writeFileSync(filePath, fixedContent);
+console.log('✅ File OmsetHarian.js sudah diupdate!');
+console.log('📁 Lokasi:', filePath);
+console.log('🔄 Silakan restart service Node.js di VPS');

@@ -11,13 +11,11 @@ class LaporanKeuangan {
         let connection;
         try {
             connection = await this.getConnection();
-            // Sanitasi page & limit agar selalu integer valid untuk LIMIT/OFFSET
-            const safePage = Number.isFinite(Number(page)) && Number(page) > 0 ? parseInt(page, 10) : 1;
-            const rawLimit = Number(limit);
-            const safeLimit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(parseInt(rawLimit, 10), 100) : 10;
-            const offset = (safePage - 1) * safeLimit;
+            const offset = (page - 1) * limit;
             let whereClause = 'WHERE lk.status_deleted = 0';
             const params = [];
+            
+            console.log('LaporanKeuangan.getAll - params:', { page, limit, search, dateFilter, monthFilter });
 
             if (search) {
                 whereClause += ' AND (lk.isi_laporan LIKE ? OR u.nama LIKE ?)';
@@ -44,7 +42,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
-          lk.judul_laporan,
+          COALESCE(lk.judul_laporan, CONCAT('Laporan ', DATE_FORMAT(lk.tanggal_laporan, '%d %M %Y'))) as judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -55,7 +53,7 @@ class LaporanKeuangan {
         LEFT JOIN users u ON lk.id_user = u.id
         ${whereClause}
         ORDER BY lk.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
       `;
 
             const countQuery = `
@@ -65,17 +63,23 @@ class LaporanKeuangan {
         ${whereClause}
       `;
 
-            const [rows] = await connection.execute(query, [...params, safeLimit, offset]);
+            console.log('LaporanKeuangan.getAll - query:', query);
+            console.log('LaporanKeuangan.getAll - query params:', params);
+            
+            const [rows] = await connection.execute(query, params);
             const [countResult] = await connection.execute(countQuery, params);
+            
+            console.log('LaporanKeuangan.getAll - rows count:', rows.length);
+            console.log('LaporanKeuangan.getAll - total count:', countResult[0].total);
 
             return {
                 success: true,
                 data: rows,
                 pagination: {
-                    currentPage: safePage,
-                    totalPages: Math.ceil(countResult[0].total / safeLimit),
+                    currentPage: page,
+                    totalPages: Math.ceil(countResult[0].total / limit),
                     totalItems: countResult[0].total,
-                    itemsPerPage: safeLimit
+                    itemsPerPage: limit
                 }
             };
         } catch (error) {
@@ -94,7 +98,7 @@ class LaporanKeuangan {
         SELECT 
           lk.id,
           lk.id_user,
-          lk.judul_laporan,
+          COALESCE(lk.judul_laporan, CONCAT('Laporan ', DATE_FORMAT(lk.tanggal_laporan, '%d %M %Y'))) as judul_laporan,
           lk.tanggal_laporan,
           lk.isi_laporan,
           lk.images,
@@ -230,11 +234,6 @@ class LaporanKeuangan {
         }
     }
 
-    // Backward-compatible alias for older controllers calling getStatistics
-    static async getStatistics() {
-        return this.getStats();
-    }
-
     static async getAvailableMonths() {
         let connection;
         try {
@@ -251,6 +250,28 @@ class LaporanKeuangan {
             return { success: true, data: rows };
         } catch (error) {
             console.error('Error in LaporanKeuangan.getAvailableMonths:', error);
+            return { success: false, error: error.message };
+        } finally {
+            if (connection) connection.release();
+        }
+    }
+
+    static async getStatistics() {
+        let connection;
+        try {
+            connection = await this.getConnection();
+            const query = `
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN YEAR(tanggal_laporan) = YEAR(CURDATE()) AND MONTH(tanggal_laporan) = MONTH(CURDATE()) THEN 1 END) as thisMonth,
+          COUNT(CASE WHEN YEAR(tanggal_laporan) = YEAR(CURDATE()) THEN 1 END) as thisYear
+        FROM laporan_keuangan
+        WHERE status_deleted = 0
+      `;
+            const [rows] = await connection.execute(query);
+            return { success: true, data: rows[0] };
+        } catch (error) {
+            console.error('Error in LaporanKeuangan.getStatistics:', error);
             return { success: false, error: error.message };
         } finally {
             if (connection) connection.release();

@@ -44,7 +44,7 @@ class TargetHarian {
         LEFT JOIN users u ON th.id_user = u.id
         ${whereClause}
         ORDER BY th.created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}
       `;
 
       const countQuery = `
@@ -54,7 +54,7 @@ class TargetHarian {
         ${whereClause}
       `;
 
-      const [rows] = await connection.execute(query, [...params, limit, offset]);
+      const [rows] = await connection.execute(query, params);
       const [countResult] = await connection.execute(countQuery, params);
 
       return {

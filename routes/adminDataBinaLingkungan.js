@@ -8,6 +8,24 @@ const { sequelize } = require('../config/database');
 const DataBinaLingkungan = require('../models/DataBinaLingkungan');
 const { authenticateToken } = require('../middleware/auth');
 
+// Helper aman untuk membaca kolom lampiran (bisa null/string/array)
+const parseLampiranField = (val) => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (!trimmed || trimmed === 'null' || trimmed === 'undefined') return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  // Jika tipe lain (object), abaikan dan kembalikan array kosong
+  return [];
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -366,19 +384,8 @@ router.post('/:id/lampiran', authenticateToken, upload.array('files', 10), async
       size: file.size
     }));
 
-    // Get existing lampiran
-    let existingLampiran = [];
-    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
-      try {
-        existingLampiran = JSON.parse(data.lampiran);
-        if (!Array.isArray(existingLampiran)) {
-          existingLampiran = [];
-        }
-      } catch (error) {
-        console.error('Error parsing existing lampiran:', error);
-        existingLampiran = [];
-      }
-    }
+    // Get existing lampiran (aman untuk berbagai tipe)
+    let existingLampiran = parseLampiranField(data.lampiran);
 
     // Add new files to existing ones
     const updatedLampiran = [...existingLampiran, ...fileData];
@@ -418,18 +425,7 @@ router.get('/:id/lampiran', authenticateToken, async (req, res) => {
       });
     }
 
-    let lampiran = [];
-    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
-      try {
-        lampiran = JSON.parse(data.lampiran);
-        if (!Array.isArray(lampiran)) {
-          lampiran = [];
-        }
-      } catch (error) {
-        console.error('Error parsing lampiran:', error);
-        lampiran = [];
-      }
-    }
+    let lampiran = parseLampiranField(data.lampiran);
 
     res.json({
       success: true,
@@ -468,21 +464,7 @@ router.delete('/:id/lampiran', authenticateToken, async (req, res) => {
       });
     }
 
-    let lampiran = [];
-    if (data.lampiran && data.lampiran.trim() !== '' && data.lampiran !== 'null') {
-      try {
-        lampiran = JSON.parse(data.lampiran);
-        if (!Array.isArray(lampiran)) {
-          lampiran = [];
-        }
-      } catch (error) {
-        console.error('Error parsing lampiran:', error);
-        return res.status(500).json({
-          success: false,
-          message: 'Gagal memproses lampiran'
-        });
-      }
-    }
+    let lampiran = parseLampiranField(data.lampiran);
 
     // Find and remove the file
     const fileIndex = lampiran.findIndex(file => file.stored_name === stored_name);

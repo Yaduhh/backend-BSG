@@ -1,5 +1,6 @@
 const { Op } = require('sequelize');
-const { Notification, UserNotification, User } = require('../models');
+const { Notification, UserNotification, User, UserDevice } = require('../models');
+const notificationService = require('../services/notificationService');
 
 // POST /api/notifications/send-to-all
 exports.sendToAllUsers = async (req, res) => {
@@ -41,15 +42,61 @@ exports.sendToAllUsers = async (req, res) => {
       attributes: ['id']
     });
 
-    // Buat user notification records
-    const userNotifications = users.map(user => ({
-      notification_id: notification.id,
-      user_id: user.id,
-      is_read: false,
-      push_sent: false
-    }));
+    // Buat user notification records dan kirim push notification
+    const userNotifications = [];
+    let pushSentCount = 0;
 
-    await UserNotification.bulkCreate(userNotifications);
+    for (const user of users) {
+      // Buat user notification record
+      const userNotification = await UserNotification.create({
+        notification_id: notification.id,
+        user_id: user.id,
+        is_read: false,
+        push_sent: false
+      });
+
+      // Kirim push notification ke user
+      try {
+        const pushSuccess = await notificationService.sendNotificationToUser(
+          user.id,
+          title.trim(),
+          message.trim(),
+          {
+            type: 'broadcast_notification',
+            notification_id: notification.id,
+            title: title.trim(),
+            message: message.trim(),
+            description: description ? description.trim() : null,
+            priority: priority,
+            category: category,
+            sender_id: senderId,
+            sender_name: senderName,
+            sender_role: senderRole
+          }
+        );
+
+        if (pushSuccess) {
+          await userNotification.update({
+            push_sent: true,
+            push_sent_at: new Date()
+          });
+          pushSentCount++;
+        } else {
+          await userNotification.update({
+            push_failed: true,
+            push_error: 'Failed to send push notification'
+          });
+        }
+      } catch (pushError) {
+        console.error(`Error sending push notification to user ${user.id}:`, pushError);
+        await userNotification.update({
+          push_failed: true,
+          push_error: pushError.message || 'Unknown push notification error'
+        });
+      }
+
+      userNotifications.push(userNotification);
+    }
 
     // Update sent_count
     await notification.update({
@@ -58,10 +105,11 @@ exports.sendToAllUsers = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Notifikasi berhasil dikirim ke semua user',
+      message: `Notifikasi berhasil dikirim ke ${users.length} user (${pushSentCount} push notifications berhasil)`,
       data: {
         notificationId: notification.id,
         sentCount: users.length,
+        pushSentCount: pushSentCount,
         notification: {
           id: notification.id,
           title: notification.title,
@@ -139,15 +187,61 @@ exports.sendToUsers = async (req, res) => {
       sent_at: new Date()
     });
 
-    // Buat user notification records
-    const userNotifications = users.map(user => ({
-      notification_id: notification.id,
-      user_id: user.id,
-      is_read: false,
-      push_sent: false
-    }));
+    // Buat user notification records dan kirim push notification
+    const userNotifications = [];
+    let pushSentCount = 0;
 
-    await UserNotification.bulkCreate(userNotifications);
+    for (const user of users) {
+      // Buat user notification record
+      const userNotification = await UserNotification.create({
+        notification_id: notification.id,
+        user_id: user.id,
+        is_read: false,
+        push_sent: false
+      });
+
+      // Kirim push notification ke user
+      try {
+        const pushSuccess = await notificationService.sendNotificationToUser(
+          user.id,
+          title.trim(),
+          message.trim(),
+          {
+            type: 'targeted_notification',
+            notification_id: notification.id,
+            title: title.trim(),
+            message: message.trim(),
+            description: description ? description.trim() : null,
+            priority: priority,
+            category: category,
+            sender_id: senderId,
+            sender_name: senderName,
+            sender_role: senderRole
+          }
+        );
+
+        if (pushSuccess) {
+          await userNotification.update({
+            push_sent: true,
+            push_sent_at: new Date()
+          });
+          pushSentCount++;
+        } else {
+          await userNotification.update({
+            push_failed: true,
+            push_error: 'Failed to send push notification'
+          });
+        }
+      } catch (pushError) {
+        console.error(`Error sending push notification to user ${user.id}:`, pushError);
+        await userNotification.update({
+          push_failed: true,
+          push_error: pushError.message || 'Unknown push notification error'
+        });
+      }
+
+      userNotifications.push(userNotification);
+    }
 
     // Update sent_count
     await notification.update({
@@ -156,10 +250,11 @@ exports.sendToUsers = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Notifikasi berhasil dikirim ke ${users.length} user`,
+      message: `Notifikasi berhasil dikirim ke ${users.length} user (${pushSentCount} push notifications berhasil)`,
       data: {
         notificationId: notification.id,
         sentCount: users.length,
+        pushSentCount: pushSentCount,
         notification: {
           id: notification.id,
           title: notification.title,
@@ -237,15 +332,62 @@ exports.sendToRole = async (req, res) => {
       sent_at: new Date()
     });
 
-    // Buat user notification records
-    const userNotifications = users.map(user => ({
-      notification_id: notification.id,
-      user_id: user.id,
-      is_read: false,
-      push_sent: false
-    }));
+    // Buat user notification records dan kirim push notification
+    const userNotifications = [];
+    let pushSentCount = 0;
 
-    await UserNotification.bulkCreate(userNotifications);
+    for (const user of users) {
+      // Buat user notification record
+      const userNotification = await UserNotification.create({
+        notification_id: notification.id,
+        user_id: user.id,
+        is_read: false,
+        push_sent: false
+      });
+
+      // Kirim push notification ke user
+      try {
+        const pushSuccess = await notificationService.sendNotificationToUser(
+          user.id,
+          title.trim(),
+          message.trim(),
+          {
+            type: 'role_notification',
+            notification_id: notification.id,
+            title: title.trim(),
+            message: message.trim(),
+            description: description ? description.trim() : null,
+            priority: priority,
+            category: category,
+            target_role: role,
+            sender_id: senderId,
+            sender_name: senderName,
+            sender_role: senderRole
+          }
+        );
+
+        if (pushSuccess) {
+          await userNotification.update({
+            push_sent: true,
+            push_sent_at: new Date()
+          });
+          pushSentCount++;
+        } else {
+          await userNotification.update({
+            push_failed: true,
+            push_error: 'Failed to send push notification'
+          });
+        }
+      } catch (pushError) {
+        console.error(`Error sending push notification to user ${user.id}:`, pushError);
+        await userNotification.update({
+          push_failed: true,
+          push_error: pushError.message || 'Unknown push notification error'
+        });
+      }
+
+      userNotifications.push(userNotification);
+    }
 
     // Update sent_count
     await notification.update({
@@ -254,10 +396,11 @@ exports.sendToRole = async (req, res) => {
 
     res.json({
       success: true,
-      message: `Notifikasi berhasil dikirim ke ${users.length} user dengan role ${role}`,
+      message: `Notifikasi berhasil dikirim ke ${users.length} user dengan role ${role} (${pushSentCount} push notifications berhasil)`,
       data: {
         notificationId: notification.id,
         sentCount: users.length,
+        pushSentCount: pushSentCount,
         notification: {
           id: notification.id,
           title: notification.title,

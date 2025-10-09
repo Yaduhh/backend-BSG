@@ -195,22 +195,8 @@ const updateJadwalPembayaran = async (req, res) => {
     }
 
     // Cek permission: Owner bisa edit semua, Admin hanya yang mereka handle berdasarkan kategori
-    if (user.role !== 'owner') {
-      const picKategori = await PicKategori.findOne({
-        where: { 
-          kategori: jadwalPembayaran.kategori,
-          pic_id: user.id,
-          status_deleted: false 
-        }
-      });
-      
-      if (!picKategori) {
-        return res.status(403).json({
-          success: false,
-          message: 'Anda tidak memiliki akses untuk mengedit jadwal pembayaran ini'
-        });
-      }
-    }
+    // Kebijakan dilonggarkan: Admin diperbolehkan mengedit item meskipun belum ditetapkan sebagai PIC kategori
+    // Catatan: Pengelolaan PIC tetap dapat digunakan untuk kontrol tampilan atau kebijakan lain.
 
     // Update data
     await jadwalPembayaran.update({
@@ -264,22 +250,8 @@ const deleteJadwalPembayaran = async (req, res) => {
     }
 
     // Cek permission: Owner bisa delete semua, Admin hanya yang mereka handle berdasarkan kategori
-    if (user.role !== 'owner') {
-      const picKategori = await PicKategori.findOne({
-        where: { 
-          kategori: jadwalPembayaran.kategori,
-          pic_id: user.id,
-          status_deleted: false 
-        }
-      });
-      
-      if (!picKategori) {
-        return res.status(403).json({
-          success: false,
-          message: 'Anda tidak memiliki akses untuk menghapus jadwal pembayaran ini'
-        });
-      }
-    }
+    // Kebijakan dilonggarkan: Admin diperbolehkan menghapus item meskipun belum ditetapkan sebagai PIC kategori
+    // Catatan: Pertimbangkan audit trail jika diperlukan.
 
     // Soft delete
     await jadwalPembayaran.update({ status_deleted: true });

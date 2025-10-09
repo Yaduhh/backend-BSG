@@ -31,6 +31,8 @@ const Pengajuan = require('./Pengajuan');
 const TugasSaya = require('./TugasSaya');
 const SlipGaji = require('./SlipGaji');
 const VideoManage = require('./VideoManage');
+const Notification = require('./Notification');
+const UserNotification = require('./UserNotification');
 
 // Define associations - testing one by one
 User.hasMany(UserDevice, { foreignKey: 'user_id' });
@@ -207,6 +209,17 @@ SlipGaji.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 User.hasMany(VideoManage, { foreignKey: 'uploaded_by', as: 'uploadedVideos', constraints: false });
 VideoManage.belongsTo(User, { foreignKey: 'uploaded_by', as: 'uploader', constraints: false });
 
+// Notification associations
+User.hasMany(Notification, { foreignKey: 'sender_id', as: 'sentNotifications' });
+Notification.belongsTo(User, { foreignKey: 'sender_id', as: 'sender' });
+
+// UserNotification associations
+User.hasMany(UserNotification, { foreignKey: 'user_id', as: 'userNotifications' });
+UserNotification.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+
+Notification.hasMany(UserNotification, { foreignKey: 'notification_id', as: 'userNotifications' });
+UserNotification.belongsTo(Notification, { foreignKey: 'notification_id', as: 'notification' });
+
 module.exports = {
   User,
   UserDevice,
@@ -240,5 +253,7 @@ module.exports = {
   Pengajuan,
   TugasSaya,
   SlipGaji,
-  VideoManage
+  VideoManage,
+  Notification,
+  UserNotification
 };

@@ -83,6 +83,7 @@ const tugasSayaRoutes = require('./routes/tugasSaya');
 const leaderUsersRoutes = require('./routes/leaderUsers');
 const divisiRoutes = require('./routes/divisi');
 const leaderDivisiRoutes = require('./routes/leaderDivisi');
+const notificationRoutes = require('./routes/notifications');
 
 // Import database config and models
 const { sequelize, testConnection } = require('./config/database');
@@ -200,6 +201,7 @@ app.use('/api/leader/tugas-saya', tugasSayaRoutes);
 app.use('/api/leader/users', leaderUsersRoutes);
 app.use('/api/divisi', divisiRoutes);
 app.use('/api/leader/divisi', leaderDivisiRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

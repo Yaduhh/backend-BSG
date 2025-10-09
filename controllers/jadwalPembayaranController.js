@@ -129,23 +129,8 @@ const createJadwalPembayaran = async (req, res) => {
       });
     }
 
-    // Validasi kategori untuk admin - hanya bisa create untuk kategori yang mereka handle
-    if (user.role !== 'owner') {
-      const picKategori = await PicKategori.findOne({
-        where: { 
-          kategori: kategori,
-          pic_id: user.id,
-          status_deleted: false 
-        }
-      });
-      
-      if (!picKategori) {
-        return res.status(403).json({
-          success: false,
-          message: 'Anda tidak memiliki akses untuk membuat item di kategori ini'
-        });
-      }
-    }
+    // Kebijakan dilonggarkan: Admin diperbolehkan membuat item meskipun belum ditetapkan sebagai PIC kategori
+    // Catatan: Validasi akses tetap diberlakukan pada update dan delete.
 
     const jadwalPembayaran = await JadwalPembayaran.create({
       nama_item,

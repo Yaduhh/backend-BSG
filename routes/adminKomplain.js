@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+
 const { DaftarKomplain } = require('../models');
 const multer = require('multer');
 const path = require('path');
@@ -60,14 +61,20 @@ const upload = multer({
   }
 });
 
-// Get all komplain for admin
-router.get('/', authenticateToken, requireAdmin, async (req, res) => {
+// Get all komplain for admin/owner
+// Default: hanya komplain yang ditugaskan ke user (assigned)
+// Gunakan ?scope=all untuk melihat semua komplain
+router.get('/', authenticateAdmin, async (req, res) => {
   try {
-    // Filter komplain berdasarkan penerima_komplain_id yang sesuai dengan admin yang sedang login
+    const scope = (req.query.scope || '').toString().toLowerCase();
+    const where = {};
+    if (scope !== 'all') {
+      // Filter komplain berdasarkan penerima_komplain_id yang sesuai dengan user yang sedang login
+      where.penerima_komplain_id = req.user.id;
+    }
+
     const komplain = await DaftarKomplain.findAll({
-      where: {
-        penerima_komplain_id: req.user.id
-      },
+      where,
       include: [
         {
           model: require('../models').User,
@@ -109,7 +116,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
       data: komplainWithParsedData
     });
   } catch (error) {
-    console.error('Error fetching komplain for admin:', error);
+    console.error('Error fetching komplain for admin/owner:', error);
     res.status(500).json({
       success: false,
       message: 'Gagal mengambil data komplain'
@@ -117,8 +124,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// Get komplain detail for admin
-router.get('/:id', authenticateToken, requireAdmin, async (req, res) => {
+// Get komplain detail for admin/owner
+router.get('/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     

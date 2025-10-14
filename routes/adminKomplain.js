@@ -100,11 +100,37 @@ router.get('/', authenticateAdmin, async (req, res) => {
     // Parse lampiran dan pihak_terkait JSON serta lakukan filter sesuai scope
     const parsed = komplain.map(complaint => {
       const complaintData = complaint.toJSON();
+      // Parse lampiran robust (handle double-encoded)
       if (complaintData.lampiran) {
-        try { complaintData.lampiran = JSON.parse(complaintData.lampiran); } catch { complaintData.lampiran = []; }
+        try {
+          let val = complaintData.lampiran;
+          if (typeof val === 'string') {
+            try { val = JSON.parse(val); } catch {}
+            if (typeof val === 'string') {
+              try { val = JSON.parse(val); } catch {}
+            }
+          }
+          if (!Array.isArray(val)) val = [];
+          complaintData.lampiran = val;
+        } catch {
+          complaintData.lampiran = [];
+        }
       }
+      // Parse pihak_terkait robust (handle double-encoded)
       if (complaintData.pihak_terkait) {
-        try { complaintData.pihak_terkait = JSON.parse(complaintData.pihak_terkait); } catch { complaintData.pihak_terkait = []; }
+        try {
+          let val = complaintData.pihak_terkait;
+          if (typeof val === 'string') {
+            try { val = JSON.parse(val); } catch {}
+            if (typeof val === 'string') {
+              try { val = JSON.parse(val); } catch {}
+            }
+          }
+          if (!Array.isArray(val)) val = [];
+          complaintData.pihak_terkait = val;
+        } catch {
+          complaintData.pihak_terkait = [];
+        }
       }
       return complaintData;
     });

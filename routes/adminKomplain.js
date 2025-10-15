@@ -67,10 +67,17 @@ const upload = multer({
 router.get('/', authenticateAdmin, async (req, res) => {
   try {
     const scope = (req.query.scope || '').toString().toLowerCase();
+    const userId = req.user.id;
     const where = {};
-    if (scope !== 'all') {
-      // Filter komplain berdasarkan penerima_komplain_id yang sesuai dengan user yang sedang login
-      where.penerima_komplain_id = req.user.id;
+
+    // Default: hanya assigned ke user
+    // scope=all -> semua komplain
+    // scope=related -> hanya komplain dimana user termasuk pihak_terkait
+    // scope=assigned_or_related -> komplain assigned ke user ATAU user termasuk pihak_terkait
+    const needAll = scope === 'all' || scope === 'related' || scope === 'assigned_or_related';
+    if (!needAll) {
+      // assigned only (default)
+      where.penerima_komplain_id = userId;
     }
 
     const komplain = await DaftarKomplain.findAll({
@@ -90,30 +97,87 @@ router.get('/', authenticateAdmin, async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
-    // Parse lampiran dan pihak_terkait JSON seperti owner
-    const komplainWithParsedData = komplain.map(complaint => {
+    // Parse lampiran dan pihak_terkait JSON serta lakukan filter sesuai scope
+    const parsed = komplain.map(complaint => {
       const complaintData = complaint.toJSON();
+      // Parse lampiran robust (handle double-encoded)
       if (complaintData.lampiran) {
         try {
-          complaintData.lampiran = JSON.parse(complaintData.lampiran);
-        } catch (e) {
+          let val = complaintData.lampiran;
+          if (typeof val === 'string') {
+            try { val = JSON.parse(val); } catch {}
+            if (typeof val === 'string') {
+              try { val = JSON.parse(val); } catch {}
+            }
+          }
+          if (!Array.isArray(val)) val = [];
+          complaintData.lampiran = val;
+        } catch {
           complaintData.lampiran = [];
         }
       }
+      // Parse pihak_terkait robust (handle double-encoded)
       if (complaintData.pihak_terkait) {
         try {
-          complaintData.pihak_terkait = JSON.parse(complaintData.pihak_terkait);
-        } catch (e) {
+          let val = complaintData.pihak_terkait;
+          if (typeof val === 'string') {
+            try { val = JSON.parse(val); } catch {}
+            if (typeof val === 'string') {
+              try { val = JSON.parse(val); } catch {}
+            }
+          }
+          if (!Array.isArray(val)) val = [];
+          complaintData.pihak_terkait = val;
+        } catch {
           complaintData.pihak_terkait = [];
         }
       }
       return complaintData;
     });
 
+    let filtered = parsed;
+    if (scope === 'related') {
+      filtered = parsed.filter(item => {
+        const pt = item?.pihak_terkait;
+        if (!Array.isArray(pt)) return false;
+        return pt.some(x => {
+          if (typeof x === 'number') return x === userId;
+          if (typeof x === 'string') {
+            const num = parseInt(x, 10);
+            return !Number.isNaN(num) && num === userId;
+          }
+          if (x && typeof x === 'object') {
+            return x.id === userId || x.user_id === userId || x.UserId === userId;
+          }
+          return false;
+        });
+      });
+    } else if (scope === 'assigned_or_related') {
+      filtered = parsed.filter(item => {
+        const assigned = (item?.penerima_komplain_id === userId) || (item?.PenerimaKomplain?.id === userId);
+        let related = false;
+        const pt = item?.pihak_terkait;
+        if (Array.isArray(pt)) {
+          related = pt.some(x => {
+            if (typeof x === 'number') return x === userId;
+            if (typeof x === 'string') {
+              const num = parseInt(x, 10);
+              return !Number.isNaN(num) && num === userId;
+            }
+            if (x && typeof x === 'object') {
+              return x.id === userId || x.user_id === userId || x.UserId === userId;
+            }
+            return false;
+          });
+        }
+        return assigned || related;
+      });
+    }
+
     res.json({
       success: true,
       message: 'Data komplain berhasil diambil',
-      data: komplainWithParsedData
+      data: filtered
     });
   } catch (error) {
     console.error('Error fetching komplain for admin/owner:', error);

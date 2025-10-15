@@ -137,7 +137,7 @@ const DataAset = sequelize.define('DataAset', {
   lampiran: {
     type: DataTypes.TEXT,
     allowNull: true,
-    comment: 'FOTO, FILE, VIDEO'
+    comment: 'JSON array of uploaded files: [{filename, originalname, path, size, mimetype}]'
   },
   status_deleted: {
     type: DataTypes.BOOLEAN,

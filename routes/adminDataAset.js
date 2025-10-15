@@ -3,6 +3,9 @@ const router = express.Router();
 const { DataAset, User } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
 const { Op } = require('sequelize');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 // Middleware untuk memastikan hanya admin yang bisa akses
 const adminOnly = (req, res, next) => {
@@ -14,6 +17,43 @@ const adminOnly = (req, res, next) => {
   }
   next();
 };
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../uploads/data-aset');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: function (req, file, cb) {
+    // Allow image, video, PDF, and document files
+    const allowedExtensions = /\.(jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|txt|mp4|avi|mov|wmv|flv|mkv|webm)$/i;
+    const allowedMimeTypes = /^(image\/|video\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document|application\/vnd\.ms-excel|application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet|text\/)/;
+    
+    const extname = allowedExtensions.test(file.originalname);
+    const mimetype = allowedMimeTypes.test(file.mimetype);
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only image, video, PDF, and document files are allowed!'));
+    }
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+    files: 10 // Maximum 10 files per upload
+  }
+});
 
 // GET /api/admin/data-aset - Ambil semua data aset dengan pagination
 router.get('/', authenticateToken, adminOnly, async (req, res) => {
@@ -89,10 +129,30 @@ router.get('/', authenticateToken, adminOnly, async (req, res) => {
       } 
     });
 
+    // Parse lampiran JSON for each item
+    const itemsWithParsedLampiran = dataAset.rows.map(item => {
+      const itemData = item.toJSON();
+      if (itemData.lampiran) {
+        try {
+          // Check if it's already a JSON string or old text format
+          if (itemData.lampiran.startsWith('[') || itemData.lampiran.startsWith('{')) {
+            itemData.lampiran = JSON.parse(itemData.lampiran);
+          } else {
+            // Old format like "FOTO, FILE, VIDEO" - convert to empty array
+            itemData.lampiran = [];
+          }
+        } catch (error) {
+          console.error('Error parsing lampiran:', error);
+          itemData.lampiran = [];
+        }
+      }
+      return itemData;
+    });
+
     res.json({
       success: true,
       data: {
-        items: dataAset.rows,
+        items: itemsWithParsedLampiran,
         pagination: {
           currentPage: parseInt(page),
           totalPages: Math.ceil(dataAset.count / limit),
@@ -143,9 +203,26 @@ router.get('/:id', authenticateToken, adminOnly, async (req, res) => {
       });
     }
 
+    // Parse lampiran JSON
+    const dataAsetData = dataAset.toJSON();
+    if (dataAsetData.lampiran) {
+      try {
+        // Check if it's already a JSON string or old text format
+        if (dataAsetData.lampiran.startsWith('[') || dataAsetData.lampiran.startsWith('{')) {
+          dataAsetData.lampiran = JSON.parse(dataAsetData.lampiran);
+        } else {
+          // Old format like "FOTO, FILE, VIDEO" - convert to empty array
+          dataAsetData.lampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing lampiran:', error);
+        dataAsetData.lampiran = [];
+      }
+    }
+
     res.json({
       success: true,
-      data: dataAset
+      data: dataAsetData
     });
   } catch (error) {
     console.error('Error fetching data aset detail:', error);
@@ -571,6 +648,194 @@ router.get('/statistics/overview', authenticateToken, adminOnly, async (req, res
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: error.message
+    });
+  }
+});
+
+// POST /api/admin/data-aset/:id/upload - Upload lampiran untuk data aset
+router.post('/:id/upload', authenticateToken, adminOnly, upload.array('lampiran', 10), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const dataAset = await DataAset.findByPk(id);
+    
+    if (!dataAset) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data aset tidak ditemukan'
+      });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada file yang diupload'
+      });
+    }
+
+    // Process uploaded files
+    const uploadedFiles = req.files.map(file => {
+      // Convert absolute path to relative path for web access
+      const relativePath = file.path.replace(path.join(__dirname, '../'), '').replace(/\\/g, '/');
+      
+      return {
+        filename: file.filename,
+        originalname: file.originalname,
+        path: relativePath,
+        size: file.size,
+        mimetype: file.mimetype
+      };
+    });
+
+    // Get existing lampiran
+    let existingLampiran = [];
+    if (dataAset.lampiran) {
+      try {
+        // Check if it's already a JSON string or old text format
+        if (dataAset.lampiran.startsWith('[') || dataAset.lampiran.startsWith('{')) {
+          existingLampiran = JSON.parse(dataAset.lampiran);
+        } else {
+          // Old format like "FOTO, FILE, VIDEO" - convert to empty array
+          existingLampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing existing lampiran:', error);
+        existingLampiran = [];
+      }
+    }
+
+    // Add new files to existing lampiran
+    const updatedLampiran = [...existingLampiran, ...uploadedFiles];
+
+    // Update data aset with new lampiran
+    await dataAset.update({
+      lampiran: JSON.stringify(updatedLampiran),
+      updated_at: new Date()
+    });
+
+    // Get updated data aset
+    const updatedDataAset = await DataAset.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'creator',
+          attributes: ['id', 'nama', 'username']
+        }
+      ]
+    });
+
+    // Parse lampiran JSON
+    const dataAsetData = updatedDataAset.toJSON();
+    if (dataAsetData.lampiran) {
+      try {
+        // Check if it's already a JSON string or old text format
+        if (dataAsetData.lampiran.startsWith('[') || dataAsetData.lampiran.startsWith('{')) {
+          dataAsetData.lampiran = JSON.parse(dataAsetData.lampiran);
+        } else {
+          // Old format like "FOTO, FILE, VIDEO" - convert to empty array
+          dataAsetData.lampiran = [];
+        }
+      } catch (error) {
+        console.error('Error parsing lampiran in response:', error);
+        dataAsetData.lampiran = [];
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Lampiran berhasil diupload',
+      data: dataAsetData
+    });
+
+  } catch (error) {
+    console.error('Error uploading lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal mengupload lampiran',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/admin/data-aset/:id/lampiran/:fileIndex - Delete specific lampiran file
+router.delete('/:id/lampiran/:fileIndex', authenticateToken, adminOnly, async (req, res) => {
+  try {
+    const { id, fileIndex } = req.params;
+    const index = parseInt(fileIndex);
+
+    const dataAset = await DataAset.findByPk(id);
+    
+    if (!dataAset) {
+      return res.status(404).json({
+        success: false,
+        message: 'Data aset tidak ditemukan'
+      });
+    }
+
+    let lampiranArray = [];
+    if (dataAset.lampiran) {
+      try {
+        // Check if it's already a JSON string or old text format
+        if (dataAset.lampiran.startsWith('[') || dataAset.lampiran.startsWith('{')) {
+          lampiranArray = JSON.parse(dataAset.lampiran);
+        } else {
+          // Old format like "FOTO, FILE, VIDEO" - convert to empty array
+          lampiranArray = [];
+        }
+      } catch (error) {
+        console.error('Error parsing lampiran:', error);
+        return res.status(400).json({
+          success: false,
+          message: 'Format lampiran tidak valid'
+        });
+      }
+    }
+
+    if (index < 0 || index >= lampiranArray.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'Index file tidak valid'
+      });
+    }
+
+    // Get file info before deletion
+    const fileToDelete = lampiranArray[index];
+    
+    // Remove file from array
+    lampiranArray.splice(index, 1);
+
+    // Update data aset
+    await dataAset.update({
+      lampiran: JSON.stringify(lampiranArray),
+      updated_at: new Date()
+    });
+
+    // Delete physical file
+    try {
+      const filePath = path.join(__dirname, '..', fileToDelete.path);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (fileError) {
+      console.error('Error deleting physical file:', fileError);
+      // Continue even if physical file deletion fails
+    }
+
+    res.json({
+      success: true,
+      message: 'File lampiran berhasil dihapus',
+      data: {
+        id: dataAset.id,
+        lampiran: lampiranArray
+      }
+    });
+
+  } catch (error) {
+    console.error('Error deleting lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Gagal menghapus file lampiran',
       error: error.message
     });
   }

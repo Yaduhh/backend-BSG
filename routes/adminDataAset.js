@@ -437,6 +437,21 @@ router.put('/:id', authenticateToken, adminOnly, async (req, res) => {
       });
     }
 
+    // Process lampiran - convert array to JSON string if needed
+    let processedLampiran = lampiran;
+    if (lampiran && typeof lampiran === 'object') {
+      processedLampiran = JSON.stringify(lampiran);
+    } else if (lampiran && typeof lampiran === 'string' && (lampiran.startsWith('[') || lampiran.startsWith('{'))) {
+      // Already a JSON string, keep as is
+      processedLampiran = lampiran;
+    } else if (lampiran && typeof lampiran === 'string') {
+      // Old format, convert to empty array
+      processedLampiran = JSON.stringify([]);
+    } else {
+      // No lampiran or null/undefined, set to empty array
+      processedLampiran = JSON.stringify([]);
+    }
+
     // Update data aset
     await existingDataAset.update({
       nama_aset,
@@ -465,7 +480,7 @@ router.put('/:id', authenticateToken, adminOnly, async (req, res) => {
       model,
       serial_number,
       tahun_pembelian,
-      lampiran
+      lampiran: processedLampiran
     });
 
     // Fetch the updated data with creator info

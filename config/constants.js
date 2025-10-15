@@ -47,7 +47,7 @@ const API_CONFIG = {
     // JWT Configuration
     JWT: {
         SECRET: envConfig.JWT_SECRET || process.env.JWT_SECRET || 'bosgil_group',
-        EXPIRES_IN: envConfig.JWT_EXPIRES_IN || process.env.JWT_EXPIRES_IN || '24h',
+        EXPIRES_IN: envConfig.JWT_EXPIRES_IN || process.env.JWT_EXPIRES_IN || '30d', // 30 hari
     },
 
     // File Upload Configuration

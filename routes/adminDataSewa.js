@@ -31,7 +31,7 @@ const upload = multer({
   storage: storage,
   limits: {
     // tingkatkan batas ukuran untuk mengakomodasi video dan dokumen besar (contoh: 100MB)
-    fileSize: 100 * 1024 * 1024
+    fileSize: 1000 * 10024 * 10024
   },
   fileFilter: (req, file, cb) => {
     // dukung gambar, pdf, dokumen office, txt, dan sebagian video umum
@@ -184,6 +184,14 @@ router.post('/', authenticateToken, upload.fields([
 
     const dataSewa = new DataSewa();
     console.log('📊 Creating sewa data...');
+    // Kumpulkan semua filename dari foto_aset dan lampiran, simpan sebagai JSON array di kolom foto_aset
+    const filenames = [];
+    if (req.files) {
+      if (req.files.foto_aset && req.files.foto_aset[0]) filenames.push(req.files.foto_aset[0].filename);
+      if (req.files.lampiran && Array.isArray(req.files.lampiran)) {
+        for (const f of req.files.lampiran) filenames.push(f.filename);
+      }
+    }
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -195,7 +203,7 @@ router.post('/', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0].filename : null,
+      foto_aset: filenames.length ? JSON.stringify(filenames) : null,
       kategori_sewa,
       keterangan,
       created_by: req.user.id
@@ -205,7 +213,7 @@ router.post('/', authenticateToken, upload.fields([
     const id = await dataSewa.create(sewaData);
     console.log('✅ Data saved with ID:', id);
     
-    const uploadedLampiran = (req.files && req.files.lampiran) ? req.files.lampiran.map(f => f.filename) : [];
+    const uploadedLampiran = filenames;
     res.status(201).json({
       success: true,
       message: 'Data sewa berhasil dibuat',
@@ -305,6 +313,14 @@ router.put('/:id', authenticateToken, upload.fields([
 
     const dataSewa = new DataSewa();
     console.log('📊 Updating sewa data...');
+    // Kumpulkan semua filename upload baru
+    const filenames = [];
+    if (req.files) {
+      if (req.files.foto_aset && req.files.foto_aset[0]) filenames.push(req.files.foto_aset[0].filename);
+      if (req.files.lampiran && Array.isArray(req.files.lampiran)) {
+        for (const f of req.files.lampiran) filenames.push(f.filename);
+      }
+    }
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -316,7 +332,7 @@ router.put('/:id', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: req.file ? req.file.filename : req.body.foto_aset_existing,
+      foto_aset: filenames.length ? JSON.stringify(filenames) : req.body.foto_aset_existing,
       kategori_sewa,
       keterangan
     };

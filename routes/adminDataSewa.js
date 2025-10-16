@@ -30,20 +30,17 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    // tingkatkan batas ukuran untuk mengakomodasi video dan dokumen besar (contoh: 100MB)
-    fileSize: 100 * 1024 * 1024
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   },
   fileFilter: (req, file, cb) => {
-    // dukung gambar, pdf, dokumen office, txt, dan sebagian video umum
-    const allowedExt = /jpeg|jpg|png|gif|pdf|doc|docx|xls|xlsx|ppt|pptx|txt|mp4|mov|avi|mkv|webm/;
-    const extname = allowedExt.test(path.extname(file.originalname).toLowerCase());
-    const allowedMime = /image\/|application\/pdf|application\/msword|application\/vnd\.openxmlformats-officedocument|application\/vnd\.ms-|text\/plain|video\//;
-    const mimetype = allowedMime.test(file.mimetype);
-
-    if (extname && mimetype) {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+    
+    if (mimetype && extname) {
       return cb(null, true);
     } else {
-      cb(new Error('File type not allowed. Allowed: images, pdf, office docs, txt, video.'));
+      cb(new Error('Only image files are allowed!'));
     }
   }
 });
@@ -143,15 +140,12 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Create new rental data (dukung foto_aset dan lampiran multiple)
-router.post('/', authenticateToken, upload.fields([
-  { name: 'foto_aset', maxCount: 1 },
-  { name: 'lampiran', maxCount: 50 }
-]), async (req, res) => {
+// Create new rental data
+router.post('/', authenticateToken, upload.single('foto_aset'), async (req, res) => {
   try {
     console.log('🚀 POST /admin/data-sewa - Request received');
     console.log('📝 Request body:', req.body);
-    console.log('📁 Files uploaded:', req.files);
+    console.log('📁 File uploaded:', req.file);
     console.log('👤 User:', req.user);
     
     const {
@@ -195,7 +189,7 @@ router.post('/', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0].filename : null,
+      foto_aset: req.file ? req.file.filename : null,
       kategori_sewa,
       keterangan,
       created_by: req.user.id
@@ -205,11 +199,10 @@ router.post('/', authenticateToken, upload.fields([
     const id = await dataSewa.create(sewaData);
     console.log('✅ Data saved with ID:', id);
     
-    const uploadedLampiran = (req.files && req.files.lampiran) ? req.files.lampiran.map(f => f.filename) : [];
     res.status(201).json({
       success: true,
       message: 'Data sewa berhasil dibuat',
-      data: { id, lampiran: uploadedLampiran }
+      data: { id }
     });
   } catch (error) {
     console.error('❌ Error creating rental data:', error);
@@ -220,58 +213,8 @@ router.post('/', authenticateToken, upload.fields([
   }
 });
 
-// Upload lampiran
-router.post('/:id/upload', authenticateToken, upload.array('lampiran', 50), async (req, res) => {
-  try {
-    console.log('📁 POST /admin/data-sewa/:id/upload - Request received');
-    const { id } = req.params;
-    const uploadedLampiran = req.files.map(f => f.filename);
-    res.json({
-      success: true,
-      message: 'Lampiran berhasil diupload',
-      data: uploadedLampiran
-    });
-  } catch (error) {
-    console.error('❌ Error uploading lampiran:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal mengupload lampiran'
-    });
-  }
-});
-
-// Delete lampiran
-router.delete('/:id/lampiran/:filename', authenticateToken, async (req, res) => {
-  try {
-    console.log('🗑️ DELETE /admin/data-sewa/:id/lampiran/:filename - Request received');
-    const { id, filename } = req.params;
-    const filePath = path.join(__dirname, '../uploads/data-sewa/', filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      res.json({
-        success: true,
-        message: 'Lampiran berhasil dihapus'
-      });
-    } else {
-      res.status(404).json({
-        success: false,
-        message: 'Lampiran tidak ditemukan'
-      });
-    }
-  } catch (error) {
-    console.error('❌ Error deleting lampiran:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menghapus lampiran'
-    });
-  }
-});
-
-// Update rental data (dukung foto_aset dan lampiran multiple)
-router.put('/:id', authenticateToken, upload.fields([
-  { name: 'foto_aset', maxCount: 1 },
-  { name: 'lampiran', maxCount: 50 }
-]), async (req, res) => {
+// Update rental data
+router.put('/:id', authenticateToken, upload.single('foto_aset'), async (req, res) => {
   try {
     console.log('🔄 PUT /admin/data-sewa/:id - Request received');
     const { id } = req.params;
@@ -316,7 +259,7 @@ router.put('/:id', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0].filename : req.body.foto_aset_existing,
+      foto_aset: req.file ? req.file.filename : req.body.foto_aset_existing,
       kategori_sewa,
       keterangan
     };
@@ -333,11 +276,9 @@ router.put('/:id', authenticateToken, upload.fields([
     }
     
     console.log('✅ Data updated successfully');
-    const uploadedLampiran = (req.files && req.files.lampiran) ? req.files.lampiran.map(f => f.filename) : [];
     res.json({
       success: true,
-      message: 'Data sewa berhasil diupdate',
-      data: { lampiran: uploadedLampiran }
+      message: 'Data sewa berhasil diupdate'
     });
   } catch (error) {
     console.error('❌ Error updating rental data:', error);

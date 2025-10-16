@@ -316,7 +316,7 @@ router.put('/:id', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: req.file ? req.file.filename : req.body.foto_aset_existing,
+      foto_aset: (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0].filename : req.body.foto_aset_existing,
       kategori_sewa,
       keterangan
     };

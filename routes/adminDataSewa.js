@@ -270,7 +270,7 @@ router.put('/:id', authenticateToken, upload.fields([
 
     const dataSewa = new DataSewa();
     console.log('📊 Updating sewa data...');
-    // Gabungkan file baru; jika tidak ada file baru, pakai existing dari body.
+    // Gabungkan file baru dengan existing (jika dikirim). Jika tidak ada file baru, pakai existing dari body.
     let fotoAsetValue = null;
     const fileNames = [];
     if (req.files && req.files.foto_aset) {
@@ -279,11 +279,25 @@ router.put('/:id', authenticateToken, upload.fields([
     if (req.files && req.files.lampiran) {
       req.files.lampiran.forEach(f => fileNames.push(f.filename));
     }
-    if (fileNames.length > 0) {
-      fotoAsetValue = JSON.stringify(fileNames);
-    } else if (typeof req.body.foto_aset_existing !== 'undefined') {
-      // Tetap simpan apa adanya (bisa single filename atau JSON array string)
-      fotoAsetValue = req.body.foto_aset_existing || null;
+    // Ambil existing dari body jika ada
+    let existing = [];
+    if (typeof req.body.foto_aset_existing !== 'undefined' && req.body.foto_aset_existing !== null) {
+      const raw = req.body.foto_aset_existing;
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (Array.isArray(parsed)) existing = parsed;
+        else if (typeof parsed === 'string' && parsed.trim()) existing = [parsed.trim()];
+      } catch (e) {
+        if (typeof raw === 'string' && raw.trim()) existing = [raw.trim()];
+      }
+    }
+    if (fileNames.length > 0 || existing.length > 0) {
+      // gabung existing + baru, unique
+      const merged = Array.from(new Set([...
+        existing,
+        ...fileNames
+      ].filter(Boolean)));
+      fotoAsetValue = merged.length > 0 ? JSON.stringify(merged) : null;
     }
     const sewaData = {
       nama_aset,

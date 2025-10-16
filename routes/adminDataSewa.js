@@ -27,21 +27,26 @@ const storage = multer.diskStorage({
   }
 });
 
+// Multer config: izinkan gambar, video, dan dokumen umum, dengan limit lebih besar (50MB)
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB per file
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (mimetype && extname) {
+    const mime = file.mimetype || '';
+    const isImage = mime.startsWith('image/');
+    const isVideo = mime.startsWith('video/');
+    const isPdf = mime.includes('pdf');
+    const isDoc = mime.includes('msword') || mime.includes('officedocument');
+    const isSheet = mime.includes('spreadsheet');
+    const isPresentation = mime.includes('presentation');
+    const isText = mime.startsWith('text/');
+
+    if (isImage || isVideo || isPdf || isDoc || isSheet || isPresentation || isText) {
       return cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'));
     }
+    return cb(new Error('File type not supported for data sewa'));
   }
 });
 
@@ -141,7 +146,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 // Create new rental data
-router.post('/', authenticateToken, upload.single('foto_aset'), async (req, res) => {
+// Terima field: 'foto_aset' (single) dan 'lampiran' (multiple) untuk kompatibilitas frontend
+router.post('/', authenticateToken, upload.fields([
+  { name: 'foto_aset', maxCount: 1 },
+  { name: 'lampiran', maxCount: 10 }
+]), async (req, res) => {
   try {
     console.log('🚀 POST /admin/data-sewa - Request received');
     console.log('📝 Request body:', req.body);
@@ -178,6 +187,8 @@ router.post('/', authenticateToken, upload.single('foto_aset'), async (req, res)
 
     const dataSewa = new DataSewa();
     console.log('📊 Creating sewa data...');
+    // Ambil file utama (foto_aset) jika ada
+    const uploadedFoto = (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0] : null;
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -189,7 +200,8 @@ router.post('/', authenticateToken, upload.single('foto_aset'), async (req, res)
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: req.file ? req.file.filename : null,
+      // Simpan nama file utama ke kolom foto_aset (bisa gambar/dokumen/video)
+      foto_aset: uploadedFoto ? uploadedFoto.filename : null,
       kategori_sewa,
       keterangan,
       created_by: req.user.id
@@ -214,7 +226,10 @@ router.post('/', authenticateToken, upload.single('foto_aset'), async (req, res)
 });
 
 // Update rental data
-router.put('/:id', authenticateToken, upload.single('foto_aset'), async (req, res) => {
+router.put('/:id', authenticateToken, upload.fields([
+  { name: 'foto_aset', maxCount: 1 },
+  { name: 'lampiran', maxCount: 10 }
+]), async (req, res) => {
   try {
     console.log('🔄 PUT /admin/data-sewa/:id - Request received');
     const { id } = req.params;
@@ -248,6 +263,8 @@ router.put('/:id', authenticateToken, upload.single('foto_aset'), async (req, re
 
     const dataSewa = new DataSewa();
     console.log('📊 Updating sewa data...');
+    const uploadedFoto = (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0] : null;
+    const uploadedLampiran = (req.files && req.files.lampiran) ? req.files.lampiran : null;
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -259,7 +276,8 @@ router.put('/:id', authenticateToken, upload.single('foto_aset'), async (req, re
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: req.file ? req.file.filename : req.body.foto_aset_existing,
+      foto_aset: uploadedFoto ? uploadedFoto.filename : req.body.foto_aset_existing,
+      lampiran: uploadedLampiran ? uploadedLampiran.map(file => file.filename) : req.body.lampiran_existing,
       kategori_sewa,
       keterangan
     };

@@ -154,7 +154,7 @@ router.post('/', authenticateToken, upload.fields([
   try {
     console.log('🚀 POST /admin/data-sewa - Request received');
     console.log('📝 Request body:', req.body);
-    console.log('📁 File uploaded:', req.file);
+    console.log('📁 Files uploaded:', req.files);
     console.log('👤 User:', req.user);
     
     const {
@@ -187,8 +187,15 @@ router.post('/', authenticateToken, upload.fields([
 
     const dataSewa = new DataSewa();
     console.log('📊 Creating sewa data...');
-    // Ambil file utama (foto_aset) jika ada
-    const uploadedFoto = (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0] : null;
+    // Kumpulkan semua filename dari 'foto_aset' dan 'lampiran'
+    const fileNames = [];
+    if (req.files && req.files.foto_aset) {
+      req.files.foto_aset.forEach(f => fileNames.push(f.filename));
+    }
+    if (req.files && req.files.lampiran) {
+      req.files.lampiran.forEach(f => fileNames.push(f.filename));
+    }
+    const fotoAsetValue = fileNames.length > 0 ? JSON.stringify(fileNames) : null;
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -200,8 +207,8 @@ router.post('/', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      // Simpan nama file utama ke kolom foto_aset (bisa gambar/dokumen/video)
-      foto_aset: uploadedFoto ? uploadedFoto.filename : null,
+      // Simpan semua lampiran sebagai JSON string di kolom foto_aset
+      foto_aset: fotoAsetValue,
       kategori_sewa,
       keterangan,
       created_by: req.user.id
@@ -263,8 +270,21 @@ router.put('/:id', authenticateToken, upload.fields([
 
     const dataSewa = new DataSewa();
     console.log('📊 Updating sewa data...');
-    const uploadedFoto = (req.files && req.files.foto_aset && req.files.foto_aset[0]) ? req.files.foto_aset[0] : null;
-    const uploadedLampiran = (req.files && req.files.lampiran) ? req.files.lampiran : null;
+    // Gabungkan file baru; jika tidak ada file baru, pakai existing dari body.
+    let fotoAsetValue = null;
+    const fileNames = [];
+    if (req.files && req.files.foto_aset) {
+      req.files.foto_aset.forEach(f => fileNames.push(f.filename));
+    }
+    if (req.files && req.files.lampiran) {
+      req.files.lampiran.forEach(f => fileNames.push(f.filename));
+    }
+    if (fileNames.length > 0) {
+      fotoAsetValue = JSON.stringify(fileNames);
+    } else if (typeof req.body.foto_aset_existing !== 'undefined') {
+      // Tetap simpan apa adanya (bisa single filename atau JSON array string)
+      fotoAsetValue = req.body.foto_aset_existing || null;
+    }
     const sewaData = {
       nama_aset,
       jenis_aset,
@@ -276,8 +296,7 @@ router.put('/:id', authenticateToken, upload.fields([
       mulai_sewa,
       berakhir_sewa,
       penanggung_jawab_pajak,
-      foto_aset: uploadedFoto ? uploadedFoto.filename : req.body.foto_aset_existing,
-      lampiran: uploadedLampiran ? uploadedLampiran.map(file => file.filename) : req.body.lampiran_existing,
+      foto_aset: fotoAsetValue,
       kategori_sewa,
       keterangan
     };

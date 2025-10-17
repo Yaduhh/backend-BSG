@@ -379,6 +379,7 @@ router.post('/:id/lampiran', authenticateToken, upload.array('files', 10), async
     const fileData = req.files.map(file => ({
       originalName: file.originalname,
       storedName: file.filename,
+      stored_name: file.filename, // kompatibilitas legacy
       path: file.path,
       mimeType: file.mimetype,
       size: file.size
@@ -444,12 +445,12 @@ router.get('/:id/lampiran', authenticateToken, async (req, res) => {
 router.delete('/:id/lampiran', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { stored_name } = req.body;
+    const { stored_name, storedName } = req.body;
 
-    if (!stored_name) {
+    if (!stored_name && !storedName) {
       return res.status(400).json({
         success: false,
-        message: 'stored_name diperlukan'
+        message: 'stored_name atau storedName diperlukan'
       });
     }
 
@@ -467,7 +468,8 @@ router.delete('/:id/lampiran', authenticateToken, async (req, res) => {
     let lampiran = parseLampiranField(data.lampiran);
 
     // Find and remove the file
-    const fileIndex = lampiran.findIndex(file => file.stored_name === stored_name);
+    const targetName = stored_name || storedName;
+    const fileIndex = lampiran.findIndex(file => (file.stored_name === targetName) || (file.storedName === targetName));
     if (fileIndex === -1) {
       return res.status(404).json({
         success: false,

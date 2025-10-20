@@ -53,7 +53,6 @@ const authenticateToken = async (req, res, next) => {
 
     console.error('Auth middleware error:', error);
     return res.status(500).json({
-      success: false,
       message: 'Terjadi kesalahan pada autentikasi'
     });
   }
@@ -76,7 +75,25 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
+// Middleware khusus untuk leader
+const authenticateLeader = async (req, res, next) => {
+  try {
+    await authenticateToken(req, res, () => {
+      if (req.user.role !== 'leader' && req.user.role !== 'admin' && req.user.role !== 'owner') {
+        return res.status(403).json({
+          success: false,
+          message: 'Akses ditolak. Hanya leader/admin/owner yang diizinkan.'
+        });
+      }
+      next();
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   authenticateToken,
-  authenticateAdmin
-}; 
+  authenticateAdmin,
+  authenticateLeader
+};

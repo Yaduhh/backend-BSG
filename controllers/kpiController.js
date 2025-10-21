@@ -195,7 +195,13 @@ const kpiController = {
 
       // Ambil semua divisi ID yang terkait dengan leader
       const leaderDivisiIds = leaderDivisiData.map(item => item.id_divisi);
-      const leaderDivisi = leaderDivisiData[0].divisi; // Ambil divisi pertama untuk response
+      
+      // Ambil semua divisi sebagai array (bukan cuma yang pertama)
+      const leaderDivisiList = leaderDivisiData.map(item => ({
+        id: item.divisi.id,
+        nama_divisi: item.divisi.nama_divisi,
+        keterangan: item.divisi.deskripsi
+      }));
 
       // Ambil semua KPI yang relevan untuk leader:
       // 1. KPI divisi (divisi_id IN leaderDivisiIds)
@@ -252,7 +258,7 @@ const kpiController = {
         success: true,
         data: {
           kpis: kpis,
-          leaderDivisi: leaderDivisi
+          leaderDivisi: leaderDivisiList // Return array semua divisi
         },
         message: 'KPIs retrieved successfully for leader division'
       });

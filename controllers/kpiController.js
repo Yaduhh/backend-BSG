@@ -186,6 +186,10 @@ const kpiController = {
         ]
       });
 
+      console.log('🔍 [KPI Controller] userId:', userId);
+      console.log('🔍 [KPI Controller] leaderDivisiData found:', leaderDivisiData.length);
+      console.log('🔍 [KPI Controller] leaderDivisiData:', JSON.stringify(leaderDivisiData, null, 2));
+
       if (!leaderDivisiData || leaderDivisiData.length === 0) {
         return res.status(404).json({
           success: false,
@@ -202,6 +206,8 @@ const kpiController = {
         nama_divisi: item.divisi.nama_divisi,
         keterangan: item.divisi.deskripsi
       }));
+
+      console.log('🔍 [KPI Controller] leaderDivisiList:', JSON.stringify(leaderDivisiList, null, 2));
 
       // Ambil semua KPI yang relevan untuk leader:
       // 1. KPI divisi (divisi_id IN leaderDivisiIds)

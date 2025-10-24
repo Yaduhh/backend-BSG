@@ -25,17 +25,25 @@ const syncDatabase = async () => {
     });
     
     if (!adminUser) {
-      // Buat user admin default
-      await User.create({
-        nama: 'Administrator',
-        username: 'admin',
-        email: 'admin@bosgilgroup.com',
-        password: 'admin123',
-        role: 'admin',
-        status: 'active'
-      });
-      
-      console.log('👤 Default admin user created');
+      try {
+        // Buat user admin default
+        await User.create({
+          nama: 'Administrator',
+          username: 'admin',
+          email: 'admin@bosgilgroup.com',
+          password: 'admin123',
+          role: 'admin',
+          status: 'active'
+        });
+        
+        console.log('👤 Default admin user created');
+      } catch (createError) {
+        if (createError.name === 'SequelizeUniqueConstraintError') {
+          console.log('👤 Admin user already exists, skipping creation');
+        } else {
+          throw createError;
+        }
+      }
     }
     
     // Update role lama ke role baru

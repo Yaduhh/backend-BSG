@@ -88,6 +88,11 @@ const User = sequelize.define('User', {
     type: DataTypes.BOOLEAN,
     allowNull: false,
     defaultValue: false
+  },
+  profile: {
+    type: DataTypes.STRING(500),
+    allowNull: true,
+    comment: 'Path foto profile user'
   }
 }, {
   tableName: 'users',

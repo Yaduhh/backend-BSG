@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { User, DaftarTugas, ChatRoom, Message, KeuanganPoskas } = require('../models');
+const { User, DaftarTugas, DaftarKomplain, ChatRoom, Message, KeuanganPoskas } = require('../models');
 const { authenticateToken, authenticateAdmin } = require('../middleware/auth');
+const { uploadSingleProfile, handleProfileUploadError } = require('../middleware/uploadProfile');
 const { Op } = require('sequelize');
+const fs = require('fs');
+const path = require('path');
 
 
 
@@ -197,6 +200,120 @@ router.put('/change-password', authenticateAdmin, async (req, res) => {
   }
 });
 
+// PUT /admin/profile/photo - Upload foto profile admin
+router.put('/profile/photo', authenticateAdmin, uploadSingleProfile, handleProfileUploadError, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada file yang diupload'
+      });
+    }
+
+    // Ambil user yang sedang login
+    const user = await User.findByPk(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    // Hapus foto profile lama jika ada
+    if (user.profile) {
+      const oldProfilePath = path.join(__dirname, '../uploads/profile', path.basename(user.profile));
+      if (fs.existsSync(oldProfilePath)) {
+        try {
+          fs.unlinkSync(oldProfilePath);
+        } catch (error) {
+          console.warn('Gagal menghapus foto profile lama:', error.message);
+        }
+      }
+    }
+
+    // Update path foto profile di database
+    const profilePath = `/uploads/profile/${req.file.filename}`;
+    user.profile = profilePath;
+    await user.save();
+
+    // Ambil data user yang sudah diupdate (tanpa password)
+    const updatedUser = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    res.json({
+      success: true,
+      message: 'Foto profile berhasil diupload',
+      data: {
+        user: updatedUser,
+        profileUrl: profilePath
+      }
+    });
+  } catch (error) {
+    console.error('Error uploading profile photo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengupload foto profile',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /admin/profile/photo - Hapus foto profile admin
+router.delete('/profile/photo', authenticateAdmin, async (req, res) => {
+  try {
+    // Ambil user yang sedang login
+    const user = await User.findByPk(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User tidak ditemukan'
+      });
+    }
+
+    if (!user.profile) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada foto profile untuk dihapus'
+      });
+    }
+
+    // Hapus file foto profile dari server
+    const profilePath = path.join(__dirname, '../uploads/profile', path.basename(user.profile));
+    if (fs.existsSync(profilePath)) {
+      try {
+        fs.unlinkSync(profilePath);
+      } catch (error) {
+        console.warn('Gagal menghapus file foto profile:', error.message);
+      }
+    }
+
+    // Update database - hapus path foto profile
+    user.profile = null;
+    await user.save();
+
+    // Ambil data user yang sudah diupdate (tanpa password)
+    const updatedUser = await User.findByPk(req.user.id, {
+      attributes: { exclude: ['password'] }
+    });
+
+    res.json({
+      success: true,
+      message: 'Foto profile berhasil dihapus',
+      data: updatedUser
+    });
+  } catch (error) {
+    console.error('Error deleting profile photo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat menghapus foto profile',
+      error: error.message
+    });
+  }
+});
+
 // GET /admin/stats - Mendapatkan statistik admin
 router.get('/stats', authenticateAdmin, async (req, res) => {
   try {
@@ -349,8 +466,17 @@ async function getAdminStats(adminId) {
     // Total chat rooms aktif
     const activeChats = ChatRoom ? await ChatRoom.count() : 0;
 
-    // Total keuangan
-    const totalKeuangan = KeuanganPoskas ? await KeuanganPoskas.count() : 0;
+    // Total keuangan - menggunakan getSummary() karena KeuanganPoskas bukan Sequelize model
+    let totalKeuangan = 0;
+    try {
+      if (KeuanganPoskas) {
+        const summary = await KeuanganPoskas.getSummary();
+        totalKeuangan = summary ? summary.total_entries : 0;
+      }
+    } catch (error) {
+      console.warn('Error getting keuangan stats:', error.message);
+      totalKeuangan = 0;
+    }
 
     // Total users (non-admin)
     const totalUsers = User ? await User.count({
@@ -358,6 +484,9 @@ async function getAdminStats(adminId) {
         role: { [Op.ne]: 'admin' }
       }
     }) : 0;
+
+    // Total komplain
+    const totalKomplain = DaftarKomplain ? await DaftarKomplain.count() : 0;
 
     // Tugas yang belum selesai
     const pendingTugas = DaftarTugas ? await DaftarTugas.count({
@@ -385,6 +514,7 @@ async function getAdminStats(adminId) {
       activeChats: activeChats || 0,
       totalKeuangan: totalKeuangan || 0,
       totalUsers: totalUsers || 0,
+      totalKomplain: totalKomplain || 0,
       pendingTugas: pendingTugas || 0,
       ongoingTugas: ongoingTugas || 0,
       completedTugas: completedTugas || 0
@@ -396,6 +526,7 @@ async function getAdminStats(adminId) {
       activeChats: 0,
       totalKeuangan: 0,
       totalUsers: 0,
+      totalKomplain: 0,
       pendingTugas: 0,
       ongoingTugas: 0,
       completedTugas: 0

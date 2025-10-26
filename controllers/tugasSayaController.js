@@ -11,19 +11,34 @@ exports.list = async (req, res) => {
     }
 
     const { page = 1, limit = 10, q, id_user } = req.query
-    const where = { status_deleted: false, created_by: userId }
+    
+    console.log('🔍 Backend - Request params:', { page, limit, q, id_user })
+    console.log('🔍 Backend - User ID:', userId)
+    console.log('🔍 Backend - User from token:', req.user)
+    
+    const where = { status_deleted: false }
+    
+    // Filter berdasarkan id_user (user yang di-assign tugasnya)
+    if (id_user) {
+      where.id_user = id_user
+      console.log('🔍 Backend - Filter by id_user (assigned to):', id_user)
+    } else {
+      // Jika tidak ada id_user, filter berdasarkan created_by
+      where.created_by = userId
+      console.log('🔍 Backend - Filter by created_by (my tasks):', userId)
+    }
 
     if (q && String(q).trim()) {
       where.tugas_saya = { [Op.like]: `%${String(q).trim()}%` }
     }
-    if (id_user) {
-      where.id_user = id_user
-    }
+
+    console.log('🔍 Backend - Final where clause:', JSON.stringify(where, null, 2))
 
     const offset = (parseInt(page) - 1) * parseInt(limit)
 
     // First get the count without includes to avoid alias conflicts
     const count = await TugasSaya.count({ where })
+    console.log('🔍 Backend - Count result:', count)
     
     // Then get the data with only creator include
     const rows = await TugasSaya.findAll({
@@ -35,6 +50,9 @@ exports.list = async (req, res) => {
       limit: parseInt(limit),
       offset,
     })
+    
+    console.log('🔍 Backend - Rows found:', rows.length)
+    console.log('🔍 Backend - First row:', rows[0]?.toJSON())
     
     const result = { rows, count }
 

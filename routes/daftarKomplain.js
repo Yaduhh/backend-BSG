@@ -10,6 +10,58 @@ const {
   sendKomplainRatingNotification
 } = require('../services/notificationService');
 const { authenticateToken } = require('../middleware/auth');
+const { uploadMultipleKomplain, compressKomplainImages, handleKomplainUploadError } = require('../middleware/uploadKomplain');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Utility function to parse lampiran data safely
+const parseLampiranData = (lampiranData) => {
+  if (!lampiranData) return [];
+  
+  // If it's already an array, return it
+  if (Array.isArray(lampiranData)) return lampiranData;
+  
+  // If it's a string, try to parse it
+  if (typeof lampiranData === 'string') {
+    try {
+      const parsed = JSON.parse(lampiranData);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Error parsing lampiran data:', error);
+      return [];
+    }
+  }
+  
+  return [];
+};
+
+// Configure multer for file upload
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../uploads/komplain');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ 
+  storage: storage,
+  fileFilter: function (req, file, cb) {
+    // Allow all file types - no restrictions
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+    files: 20 // Maximum 20 files per upload
+  }
+});
 
 // Get all complaints with pagination and filters
 router.get('/', authenticateToken, async (req, res) => {
@@ -526,6 +578,110 @@ router.get('/stats/overview', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Terjadi kesalahan saat mengambil statistik komplain',
+      error: error.message
+    });
+  }
+});
+
+// Upload lampiran untuk komplain (owner)
+router.post('/:id/upload', authenticateToken, uploadMultipleKomplain, compressKomplainImages, handleKomplainUploadError, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const komplain = await DaftarKomplain.findByPk(id);
+    
+    if (!komplain) {
+      return res.status(404).json({
+        success: false,
+        message: 'Komplain tidak ditemukan'
+      });
+    }
+
+    // Check if user is the owner of this komplain
+    if (komplain.pelapor_id !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: 'Anda tidak memiliki akses ke komplain ini'
+      });
+    }
+
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada file yang diupload'
+      });
+    }
+
+    // Process uploaded files
+    const uploadedFiles = req.files.map(file => ({
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      path: file.path
+    }));
+
+    // Get existing lampiran using utility function
+    const existingLampiran = parseLampiranData(komplain.lampiran);
+
+    // Add new files to existing lampiran
+    const updatedLampiran = [...existingLampiran, ...uploadedFiles];
+
+    // Update komplain with new lampiran - let Sequelize handle JSON field automatically
+    await komplain.update({
+      lampiran: updatedLampiran, // Don't manually stringify, let Sequelize handle it
+      updated_at: new Date()
+    });
+
+    // Get updated komplain data
+    const updatedKomplain = await DaftarKomplain.findByPk(id, {
+      include: [
+        {
+          model: User,
+          as: 'Pelapor',
+          attributes: ['id', 'nama', 'email', 'role']
+        },
+        {
+          model: User,
+          as: 'PenerimaKomplain',
+          attributes: ['id', 'nama', 'email', 'role']
+        }
+      ]
+    });
+
+    const komplainData = updatedKomplain.toJSON();
+    
+    // Parse lampiran dan pihak_terkait JSON
+    if (komplainData.lampiran) {
+      try {
+        komplainData.lampiran = JSON.parse(komplainData.lampiran);
+      } catch (e) {
+        komplainData.lampiran = [];
+      }
+    } else {
+      komplainData.lampiran = [];
+    }
+    
+    if (komplainData.pihak_terkait) {
+      try {
+        komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
+      } catch (e) {
+        komplainData.pihak_terkait = [];
+      }
+    } else {
+      komplainData.pihak_terkait = [];
+    }
+
+    res.json({
+      success: true,
+      message: 'Lampiran berhasil diupload',
+      data: komplainData
+    });
+  } catch (error) {
+    console.error('Error uploading lampiran:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Terjadi kesalahan saat mengupload lampiran',
       error: error.message
     });
   }

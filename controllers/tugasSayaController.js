@@ -2,7 +2,7 @@ const { Op } = require('sequelize')
 const { TugasSaya, User } = require('../models')
 
 // GET /api/leader/tugas-saya
-// Query: page, limit, q, id_user
+// Query: page, limit, q, id_user, admin_mode
 exports.list = async (req, res) => {
   try {
     const userId = req.user?.id
@@ -10,22 +10,29 @@ exports.list = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' })
     }
 
-    const { page = 1, limit = 10, q, id_user } = req.query
+    const { page = 1, limit = 10, q, id_user, admin_mode } = req.query
     
-    console.log('🔍 Backend - Request params:', { page, limit, q, id_user })
+    console.log('🔍 Backend - Request params:', { page, limit, q, id_user, admin_mode })
     console.log('🔍 Backend - User ID:', userId)
+    console.log('🔍 Backend - User role:', req.user?.role)
     console.log('🔍 Backend - User from token:', req.user)
     
     const where = { status_deleted: false }
     
-    // Filter berdasarkan id_user (user yang di-assign tugasnya)
-    if (id_user) {
-      where.id_user = id_user
-      console.log('🔍 Backend - Filter by id_user (assigned to):', id_user)
+    // Admin mode: bisa lihat semua data
+    if (admin_mode === 'true' && req.user?.role === 'admin') {
+      console.log('🔍 Backend - Admin mode: showing all data')
+      // Admin bisa lihat semua data, tidak perlu filter
     } else {
-      // Jika tidak ada id_user, filter berdasarkan created_by
-      where.created_by = userId
-      console.log('🔍 Backend - Filter by created_by (my tasks):', userId)
+      // Filter berdasarkan id_user (user yang di-assign tugasnya)
+      if (id_user) {
+        where.id_user = id_user
+        console.log('🔍 Backend - Filter by id_user (assigned to):', id_user)
+      } else {
+        // Jika tidak ada id_user, filter berdasarkan created_by
+        where.created_by = userId
+        console.log('🔍 Backend - Filter by created_by (my tasks):', userId)
+      }
     }
 
     if (q && String(q).trim()) {

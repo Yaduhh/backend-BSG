@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, '../uploads');
@@ -80,6 +81,76 @@ const uploadSingle = upload.single('file');
 // Middleware for multiple files upload
 const uploadMultiple = upload.array('files', 10);
 
+// Middleware untuk kompresi gambar (hanya untuk image files)
+const compressImages = async (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return next();
+    }
+
+    const compressedFiles = [];
+    
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      
+      // Check if file is an image
+      if (file.mimetype && file.mimetype.startsWith('image/')) {
+        try {
+          // Read the uploaded file
+          const fileBuffer = fs.readFileSync(file.path);
+          
+          // Generate compressed filename
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const compressedFilename = `compressed-${uniqueSuffix}.jpg`;
+          const compressedPath = path.join(path.dirname(file.path), compressedFilename);
+          
+          // Compress and resize image using Sharp
+          await sharp(fileBuffer)
+            .rotate() // Auto-rotate based on EXIF orientation
+            .resize(1200, 1200, { // Resize to max 1200x1200 pixels
+              fit: 'inside',
+              withoutEnlargement: true
+            })
+            .jpeg({ 
+              quality: 85, // 85% quality untuk balance ukuran dan kualitas
+              progressive: true,
+              mozjpeg: true
+            })
+            .toFile(compressedPath);
+          
+          // Delete original file
+          fs.unlinkSync(file.path);
+          
+          // Update file info with compressed version
+          file.filename = compressedFilename;
+          file.path = compressedPath;
+          file.size = fs.statSync(compressedPath).size;
+          file.mimetype = 'image/jpeg'; // Always JPEG after compression
+          
+          compressedFiles.push(file);
+        } catch (compressError) {
+          console.error(`Error compressing image ${file.originalname}:`, compressError);
+          // Keep original file if compression fails
+          compressedFiles.push(file);
+        }
+      } else {
+        // Keep non-image files as is
+        compressedFiles.push(file);
+      }
+    }
+    
+    // Update req.files with processed files
+    req.files = compressedFiles;
+    next();
+  } catch (error) {
+    console.error('Error in compressImages middleware:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal mengkompres gambar'
+    });
+  }
+};
+
 // Error handling middleware
 const handleUploadError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
@@ -113,5 +184,6 @@ const handleUploadError = (err, req, res, next) => {
 module.exports = {
   uploadSingle,
   uploadMultiple,
+  compressImages,
   handleUploadError
 }; 

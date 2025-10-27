@@ -65,6 +65,46 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/users/all - Get all users without pagination (for dropdowns)
+router.get('/all', async (req, res) => {
+  try {
+    const { status, role, search } = req.query;
+    
+    // Build where clause
+    const whereClause = {
+      status_deleted: false
+    };
+    
+    if (status) whereClause.status = status;
+    if (role) whereClause.role = role;
+    if (search) {
+      whereClause[Op.or] = [
+        { nama: { [Op.like]: `%${search}%` } },
+        { username: { [Op.like]: `%${search}%` } },
+        { email: { [Op.like]: `%${search}%` } }
+      ];
+    }
+    
+    const users = await User.findAll({
+      where: whereClause,
+      order: [['nama', 'ASC']],
+      attributes: ['id', 'nama', 'username', 'email', 'role', 'status']
+    });
+    
+    res.json({
+      success: true,
+      data: users,
+      total: users.length
+    });
+  } catch (error) {
+    console.error('Error fetching all users:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+});
+
 // GET /api/users/admin - Get admin users only
 router.get('/admin', async (req, res) => {
   try {

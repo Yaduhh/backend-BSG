@@ -6,6 +6,28 @@ const { DaftarKomplain } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const sharp = require('sharp');
+
+// Utility function to parse lampiran data safely
+const parseLampiranData = (lampiranData) => {
+  if (!lampiranData) return [];
+  
+  // If it's already an array, return it
+  if (Array.isArray(lampiranData)) return lampiranData;
+  
+  // If it's a string, try to parse it
+  if (typeof lampiranData === 'string') {
+    try {
+      const parsed = JSON.parse(lampiranData);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+      console.error('Error parsing lampiran data:', error);
+      return [];
+    }
+  }
+  
+  return [];
+};
 const { 
   sendKomplainStatusUpdateNotification,
   sendKomplainCompletionNotification,
@@ -57,9 +79,80 @@ const upload = multer({
     }
   },
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit untuk video
+    fileSize: 100 * 1024 * 1024, // 100MB limit untuk video dan dokumen
+    files: 20 // Maximum 20 files per upload
   }
 });
+
+// Middleware untuk kompresi gambar komplain
+const compressKomplainImages = async (req, res, next) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return next();
+    }
+
+    const compressedFiles = [];
+    
+    for (let i = 0; i < req.files.length; i++) {
+      const file = req.files[i];
+      
+      // Check if file is an image
+      if (file.mimetype && file.mimetype.startsWith('image/')) {
+        try {
+          // Read the uploaded file
+          const fileBuffer = fs.readFileSync(file.path);
+          
+          // Generate compressed filename
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+          const compressedFilename = `compressed-${uniqueSuffix}.jpg`;
+          const compressedPath = path.join(path.dirname(file.path), compressedFilename);
+          
+          // Compress and resize image using Sharp
+          await sharp(fileBuffer)
+            .rotate() // Auto-rotate based on EXIF orientation
+            .resize(1200, 1200, { // Resize to max 1200x1200 pixels
+              fit: 'inside',
+              withoutEnlargement: true
+            })
+            .jpeg({ 
+              quality: 85, // 85% quality
+              progressive: true,
+              mozjpeg: true
+            })
+            .toFile(compressedPath);
+          
+          // Delete original file
+          fs.unlinkSync(file.path);
+          
+          // Update file info with compressed version
+          file.filename = compressedFilename;
+          file.path = compressedPath;
+          file.size = fs.statSync(compressedPath).size;
+          file.mimetype = 'image/jpeg'; // Always JPEG after compression
+          
+          compressedFiles.push(file);
+        } catch (compressError) {
+          console.error(`Error compressing image ${file.originalname}:`, compressError);
+          // Keep original file if compression fails
+          compressedFiles.push(file);
+        }
+      } else {
+        // Keep non-image files as is
+        compressedFiles.push(file);
+      }
+    }
+    
+    // Update req.files with processed files
+    req.files = compressedFiles;
+    next();
+  } catch (error) {
+    console.error('Error in compressKomplainImages middleware:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Gagal mengkompres gambar komplain'
+    });
+  }
+};
 
 // Get all komplain for admin/owner
 // Default: hanya komplain yang ditugaskan ke user (assigned)
@@ -217,19 +310,18 @@ router.get('/:id', authenticateAdmin, async (req, res) => {
 
     // Parse lampiran dan pihak_terkait JSON seperti owner
     const komplainData = komplain.toJSON();
-    if (komplainData.lampiran) {
-      try {
-        komplainData.lampiran = JSON.parse(komplainData.lampiran);
-      } catch (e) {
-        komplainData.lampiran = [];
-      }
-    }
+    
+    // Parse lampiran using utility function
+    komplainData.lampiran = parseLampiranData(komplainData.lampiran);
+    
     if (komplainData.pihak_terkait) {
       try {
         komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
       } catch (e) {
         komplainData.pihak_terkait = [];
       }
+    } else {
+      komplainData.pihak_terkait = [];
     }
 
     res.json({
@@ -294,13 +386,8 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
 
     // Parse lampiran dan pihak_terkait JSON seperti owner
     const komplainData = updatedKomplain.toJSON();
-    if (komplainData.lampiran) {
-      try {
-        komplainData.lampiran = JSON.parse(komplainData.lampiran);
-      } catch (e) {
-        komplainData.lampiran = [];
-      }
-    }
+    // Parse lampiran using utility function
+    komplainData.lampiran = parseLampiranData(komplainData.lampiran);
     if (komplainData.pihak_terkait) {
       try {
         komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
@@ -470,13 +557,8 @@ router.put('/:id/note', authenticateToken, requireAdmin, async (req, res) => {
 
     // Parse lampiran dan pihak_terkait JSON seperti owner
     const komplainData = updatedKomplain.toJSON();
-    if (komplainData.lampiran) {
-      try {
-        komplainData.lampiran = JSON.parse(komplainData.lampiran);
-      } catch (e) {
-        komplainData.lampiran = [];
-      }
-    }
+    // Parse lampiran using utility function
+    komplainData.lampiran = parseLampiranData(komplainData.lampiran);
     if (komplainData.pihak_terkait) {
       try {
         komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
@@ -521,7 +603,7 @@ router.put('/:id/note', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 // Upload lampiran untuk komplain
-router.post('/:id/upload', authenticateToken, requireAdmin, upload.array('lampiran', 5), async (req, res) => {
+router.post('/:id/upload', authenticateToken, requireAdmin, upload.array('lampiran', 20), compressKomplainImages, async (req, res) => {
   try {
     const { id } = req.params;
     const { catatan_admin } = req.body;
@@ -535,7 +617,15 @@ router.post('/:id/upload', authenticateToken, requireAdmin, upload.array('lampir
       });
     }
 
-    // Add new files to lampiran (ganti lampiran lama dengan yang baru)
+    // Check if files were uploaded
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tidak ada file yang diupload'
+      });
+    }
+
+    // Add new files to existing lampiran (append, not replace)
     const newFiles = req.files.map(file => ({
       filename: file.filename,
       originalname: file.originalname,
@@ -544,11 +634,16 @@ router.post('/:id/upload', authenticateToken, requireAdmin, upload.array('lampir
       mimetype: file.mimetype
     }));
 
-    const updatedLampiran = newFiles; // Ganti dengan file baru saja
+    // Get existing lampiran using utility function
+    const existingLampiran = parseLampiranData(komplain.lampiran);
+
+    // Add new files to existing lampiran
+    const updatedLampiran = [...existingLampiran, ...newFiles];
 
     // Update komplain with new lampiran, catatan_admin, and status selesai
+    // Let Sequelize handle JSON field automatically (don't manually stringify)
     const updateData = {
-      lampiran: JSON.stringify(updatedLampiran),
+      lampiran: updatedLampiran, // Don't manually stringify, let Sequelize handle it
       status: 'selesai', // Otomatis selesai setelah upload
       tanggal_selesai: new Date(), // Update tanggal_selesai dengan waktu upload
       updated_at: new Date(),
@@ -575,27 +670,18 @@ router.post('/:id/upload', authenticateToken, requireAdmin, upload.array('lampir
 
     // Parse lampiran dan pihak_terkait JSON seperti owner
     const komplainData = updatedKomplain.toJSON();
-    if (komplainData.lampiran) {
-      try {
-        // Pastikan lampiran adalah array yang valid
-        if (typeof komplainData.lampiran === 'string') {
-          komplainData.lampiran = JSON.parse(komplainData.lampiran);
-        } else if (Array.isArray(komplainData.lampiran)) {
-          // Sudah dalam bentuk array, tidak perlu parsing lagi
-        } else {
-          komplainData.lampiran = [];
-        }
-      } catch (e) {
-        console.error('Error parsing lampiran in response:', e);
-        komplainData.lampiran = [];
-      }
-    }
+    
+    // Parse lampiran using utility function
+    komplainData.lampiran = parseLampiranData(komplainData.lampiran);
+    
     if (komplainData.pihak_terkait) {
       try {
         komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
       } catch (e) {
         komplainData.pihak_terkait = [];
       }
+    } else {
+      komplainData.pihak_terkait = [];
     }
 
     // Send notification asynchronously (don't wait for it)
@@ -679,13 +765,8 @@ router.put('/:id/catatan', authenticateToken, requireAdmin, async (req, res) => 
 
     // Parse lampiran dan pihak_terkait JSON seperti owner
     const komplainData = updatedKomplain.toJSON();
-    if (komplainData.lampiran) {
-      try {
-        komplainData.lampiran = JSON.parse(komplainData.lampiran);
-      } catch (e) {
-        komplainData.lampiran = [];
-      }
-    }
+    // Parse lampiran using utility function
+    komplainData.lampiran = parseLampiranData(komplainData.lampiran);
     if (komplainData.pihak_terkait) {
       try {
         komplainData.pihak_terkait = JSON.parse(komplainData.pihak_terkait);
@@ -706,6 +787,42 @@ router.put('/:id/catatan', authenticateToken, requireAdmin, async (req, res) => 
       message: 'Gagal memperbarui catatan admin'
     });
   }
+});
+
+// Error handling middleware untuk multer
+router.use((error, req, res, next) => {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File terlalu besar. Maksimal ukuran adalah 100MB.'
+      });
+    }
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Terlalu banyak file. Maksimal 20 file per upload.'
+      });
+    }
+    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Field file tidak diharapkan.'
+      });
+    }
+  }
+  
+  if (error.message === 'Only image, video, PDF, and document files are allowed!') {
+    return res.status(400).json({
+      success: false,
+      message: 'Hanya file gambar, video, PDF, dan dokumen yang diperbolehkan!'
+    });
+  }
+  
+  return res.status(500).json({
+    success: false,
+    message: 'Error uploading file komplain'
+  });
 });
 
 module.exports = router; 

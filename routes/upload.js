@@ -3,7 +3,7 @@ const router = express.Router();
 const path = require("path");
 const multer = require("multer");
 const fs = require("fs");
-const { uploadMultiple, handleUploadError } = require("../middleware/upload");
+const { uploadMultiple, compressImages, handleUploadError } = require("../middleware/upload");
 const { authenticateToken } = require("../middleware/auth");
 const { VideoManage } = require('../models');
 
@@ -526,7 +526,7 @@ router.post(
 );
 
 // Upload multiple files
-router.post("/files", uploadMultiple, (req, res) => {
+router.post("/files", uploadMultiple, compressImages, (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
       return res.status(400).json({

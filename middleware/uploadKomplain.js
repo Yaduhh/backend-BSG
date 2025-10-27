@@ -67,13 +67,15 @@ const compressKomplainImages = async (req, res, next) => {
           
           // Compress and resize image using Sharp
           await sharp(fileBuffer)
+            .rotate() // Auto-rotate based on EXIF orientation
             .resize(1200, 1200, { // Resize to max 1200x1200 pixels (larger than profile for komplain)
               fit: 'inside',
               withoutEnlargement: true
             })
             .jpeg({ 
               quality: 85, // 85% quality untuk komplain (higher than profile)
-              progressive: true
+              progressive: true,
+              mozjpeg: true
             })
             .toFile(compressedPath);
           

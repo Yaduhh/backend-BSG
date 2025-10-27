@@ -7,8 +7,8 @@ const setupMiddleware = (app) => {
   app.use(corsMiddleware);
   
   // Body parsing middleware with increased limits for rich content
-  app.use(express.json({ limit: '10mb' }));
-  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '100mb' }));
   
   // Error handling middleware (harus di akhir)
   app.use(errorHandler);
